@@ -10,8 +10,8 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/campus_lostfound?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
-    username: ${DB_USERNAME:}
-    password: ${DB_PASSWORD:}
+    username: root
+    password: zwj123456
 
   data:
     redis:
@@ -39,15 +39,15 @@ spring:
       max-request-size: 10MB
 
   mail:
-    host: ${MAIL_HOST:}
-    port: ${MAIL_PORT:25}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
+    host: smtp.163.com
+    port: 465
+    username: 19721623703@163.com
+    password: SCRLKy8UaApwdSi5
     properties:
       mail:
         smtp:
           auth: true
-          starttls:
+          ssl:
             enable: true
 
 mybatis-plus:

@@ -81,7 +81,7 @@ public class MailServiceImpl implements MailService {
             );
             log.info("审核通知邮件已发送至: {}", userEmail);
         } catch (Exception e) {
-            log.error("发送审核通知邮件失败: {}", e.getMessage());
+            log.error("发送审核通知邮件失败: {}", e.getMessage(), e);
         }
     }
 
@@ -91,7 +91,7 @@ public class MailServiceImpl implements MailService {
             sendHtmlEmail(userEmail, "【校园失物招领】测试邮件", "<p>这是一封测试邮件</p>");
             return true;
         } catch (Exception e) {
-            log.error("发送测试邮件失败: {}", e.getMessage());
+            log.error("发送测试邮件失败: {}", e.getMessage(), e);
             return false;
         }
     }
@@ -111,10 +111,17 @@ public class MailServiceImpl implements MailService {
         props.put("mail.smtp.host", smtpHost);
         props.put("mail.smtp.port", smtpPort);
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
-        props.put("mail.smtp.starttls.required", "true");
-        props.put("mail.smtp.timeout", "5000");
-        props.put("mail.smtp.connectiontimeout", "5000");
+        props.put("mail.smtp.timeout", "30000");
+        props.put("mail.smtp.connectiontimeout", "30000");
+        
+        if (smtpPort == 465) {
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.socketFactory.port", smtpPort);
+            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        } else {
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.starttls.required", "true");
+        }
 
         return Session.getInstance(props, new Authenticator() {
             @Override
@@ -218,8 +225,8 @@ public class MailServiceImpl implements MailService {
                             <span style="background:%s;color:white;padding:10px 20px;border-radius:5px;font-weight:bold;">%s</span>
                         </div>
                         <div style="background:#f9f9f9;border-radius:8px;padding:15px;margin:15px 0;">
-                            <p><strong>标题�?/strong>%s</p>
-                            <p><strong>类别�?/strong>%s</p>
+                            <p><strong>标题：</strong>%s</p>
+                            <p><strong>类别：</strong>%s</p>
                         </div>
             %s
                     </div>
@@ -235,7 +242,7 @@ public class MailServiceImpl implements MailService {
                 statusText,
                 escapeHtml(item.getTitle()),
                 escapeHtml(item.getCategory()),
-                reason != null ? "<p style=\"background:#ffebee;border-left:4px solid #f44336;padding:10px;\"><strong>原因�?/strong>" + escapeHtml(reason) + "</p>" : ""
+                reason != null ? "<p style=\"background:#ffebee;border-left:4px solid #f44336;padding:10px;\"><strong>原因：</strong>" + escapeHtml(reason) + "</p>" : ""
             );
     }
 

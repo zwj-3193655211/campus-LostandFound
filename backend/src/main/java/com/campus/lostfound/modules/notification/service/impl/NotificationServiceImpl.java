@@ -128,7 +128,7 @@ public class NotificationServiceImpl implements NotificationService {
 
             log.info("匹配邮件已发送: matchId={}, to={}", matchId, user.getEmail());
         } catch (Exception e) {
-            log.error("发送匹配邮件失败: matchId={}, error={}", matchId, e.getMessage());
+            log.error("发送匹配邮件失败: matchId={}", matchId, e);
         }
     }
 
@@ -218,7 +218,7 @@ public class NotificationServiceImpl implements NotificationService {
 
             log.info("审核邮件已发送: itemId={}, to={}, approved={}", item.getId(), user.getEmail(), approved);
         } catch (Exception e) {
-            log.error("发送审核邮件失败: itemId={}, error={}", item.getId(), e.getMessage());
+            log.error("发送审核邮件失败: itemId={}", item.getId(), e);
         }
     }
 

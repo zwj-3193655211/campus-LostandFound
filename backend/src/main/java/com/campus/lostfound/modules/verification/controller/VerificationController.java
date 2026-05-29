@@ -12,6 +12,8 @@ import com.campus.lostfound.modules.notification.service.NotificationService;
 import com.campus.lostfound.modules.system.entity.User;
 import com.campus.lostfound.modules.verification.entity.Verification;
 import com.campus.lostfound.modules.verification.service.VerificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +24,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/admin")
 public class VerificationController {
+
+    private static final Logger log = LoggerFactory.getLogger(VerificationController.class);
 
     private final VerificationService verificationService;
     private final ItemRepository itemRepository;
@@ -69,7 +73,7 @@ public class VerificationController {
             notificationService.notifyVerificationResult(id, "APPROVED", null);
             documentOwnerMatchService.notifyPotentialOwnerForItem(item);
         } catch (Exception e) {
-            // 忽略通知失败
+            log.error("审核通过后执行匹配/通知失败: itemId={}", id, e);
         }
 
         return ApiResponse.success("审核通过", null);
@@ -97,7 +101,7 @@ public class VerificationController {
         try {
             notificationService.notifyVerificationResult(id, "REJECTED", normalizedReason);
         } catch (Exception e) {
-            // 忽略通知失败
+            log.error("审核拒绝后执行通知失败: itemId={}", id, e);
         }
 
         return ApiResponse.success("已拒绝", null);

@@ -48,6 +48,8 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/locations/**").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN")
                         // 测试接口公开
                         .requestMatchers("/api/matches/test").permitAll()
+                        .requestMatchers("/api/notifications/send-test-email").permitAll()
+                        .requestMatchers("/api/notifications/send-match-email").permitAll()
                         // 前端静态资源
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/index.html").permitAll()
