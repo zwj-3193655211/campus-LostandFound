@@ -1,0 +1,391 @@
+package com.campus.lostfound.modules.match.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.campus.lostfound.common.constant.ItemConstants;
+import com.campus.lostfound.common.exception.BusinessException;
+import com.campus.lostfound.common.result.PageResponse;
+import com.campus.lostfound.modules.item.entity.Item;
+import com.campus.lostfound.modules.item.repository.ItemRepository;
+import com.campus.lostfound.modules.match.entity.Match;
+import com.campus.lostfound.modules.match.repository.MatchRepository;
+import com.campus.lostfound.modules.match.service.MatchingService;
+import com.campus.lostfound.modules.notification.service.NotificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Comparator;
+
+@Service
+public class MatchingServiceImpl implements MatchingService {
+
+    private static final Logger log = LoggerFactory.getLogger(MatchingServiceImpl.class);
+
+    private final MatchRepository matchRepository;
+    private final ItemRepository itemRepository;
+    private final MatchingEngine matchingEngine;
+    private final NotificationService notificationService;
+
+    public MatchingServiceImpl(MatchRepository matchRepository, ItemRepository itemRepository, 
+                               MatchingEngine matchingEngine, NotificationService notificationService) {
+        this.matchRepository = matchRepository;
+        this.itemRepository = itemRepository;
+        this.matchingEngine = matchingEngine;
+        this.notificationService = notificationService;
+    }
+
+    @Override
+    @Transactional
+    public void match(Long itemId) {
+        Item item = itemRepository.selectById(itemId);
+        if (item == null) {
+            log.warn("物品不存在: {}", itemId);
+            return;
+        }
+
+        String targetType = ItemConstants.Type.LOST.equals(item.getType()) ? ItemConstants.Type.FOUND : ItemConstants.Type.LOST;
+        List<Item> candidates = findCandidates(item, targetType);
+        log.info("物品{} 找到候选匹配 {} 个", itemId, candidates.size());
+
+        List<ScoredCandidate> scored = new ArrayList<>();
+        for (Item candidate : candidates) {
+            BigDecimal score = calculateScore(item, candidate);
+            if (score != null && score.compareTo(BigDecimal.ZERO) > 0) {
+                scored.add(new ScoredCandidate(candidate, score));
+            }
+        }
+
+        scored.sort(Comparator.comparing(ScoredCandidate::score).reversed());
+        int topK = Math.min(20, scored.size());
+        for (int i = 0; i < topK; i++) {
+            ScoredCandidate candidate = scored.get(i);
+            saveMatch(item, candidate.item(), candidate.score());
+        }
+    }
+
+    private List<Item> findCandidates(Item item, String targetType) {
+        String itemStatus = ItemConstants.Status.APPROVED;
+        LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Item::getType, targetType);
+        wrapper.eq(Item::getStatus, itemStatus);
+        wrapper.ne(Item::getId, item.getId());
+
+        String serial = item.getSerialNumber();
+        if (serial != null && !serial.isBlank()) {
+            wrapper.eq(Item::getSerialNumber, serial.trim().toUpperCase());
+        } else {
+            if (item.getCategory() != null && !item.getCategory().isBlank()) {
+                wrapper.eq(Item::getCategory, item.getCategory());
+            }
+            LocalDateTime refTime = ItemConstants.Type.LOST.equals(item.getType()) ? item.getLostTime() : item.getFoundTime();
+            if (refTime != null) {
+                LocalDateTime start = refTime.minusDays(60);
+                LocalDateTime end = refTime.plusDays(60);
+                if (ItemConstants.Type.FOUND.equals(targetType)) {
+                    wrapper.between(Item::getFoundTime, start, end);
+                } else {
+                    wrapper.between(Item::getLostTime, start, end);
+                }
+            }
+        }
+
+        Page<Item> page = new Page<>(1, 300);
+        return itemRepository.selectPage(page, wrapper).getRecords();
+    }
+
+    private BigDecimal calculateScore(Item item1, Item item2) {
+        if (ItemConstants.Type.LOST.equals(item1.getType())) {
+            MatchingEngine.LostItem lost = new MatchingEngine.LostItem(
+                    item1.getCategory(),
+                    item1.getLocationId(),
+                    item1.getLocation(),
+                    item1.getBrand(),
+                    item1.getColor(),
+                    item1.getTitle(),
+                    item1.getDescription(),
+                    item1.getSerialNumber(),
+                    item1.getLostTime()
+            );
+            MatchingEngine.FoundItem found = new MatchingEngine.FoundItem(
+                    item2.getCategory(),
+                    item2.getLocationId(),
+                    item2.getLocation(),
+                    item2.getBrand(),
+                    item2.getColor(),
+                    item2.getTitle(),
+                    item2.getDescription(),
+                    item2.getSerialNumber(),
+                    item2.getFoundTime()
+            );
+            return matchingEngine.calculateScore(lost, found);
+        }
+
+        MatchingEngine.FoundItem found = new MatchingEngine.FoundItem(
+                item1.getCategory(),
+                item1.getLocationId(),
+                item1.getLocation(),
+                item1.getBrand(),
+                item1.getColor(),
+                item1.getTitle(),
+                item1.getDescription(),
+                item1.getSerialNumber(),
+                item1.getFoundTime()
+        );
+        MatchingEngine.LostItem lost = new MatchingEngine.LostItem(
+                item2.getCategory(),
+                item2.getLocationId(),
+                item2.getLocation(),
+                item2.getBrand(),
+                item2.getColor(),
+                item2.getTitle(),
+                item2.getDescription(),
+                item2.getSerialNumber(),
+                item2.getLostTime()
+        );
+        return matchingEngine.calculateScore(lost, found);
+    }
+
+    private void saveMatch(Item item1, Item item2, BigDecimal score) {
+        if (score == null || score.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        String matchType;
+        if (score.compareTo(new BigDecimal("1.00")) == 0) {
+            matchType = "SERIAL_EXACT";
+        } else if (matchingEngine.isMatch(score)) {
+            matchType = "WEIGHTED";
+        } else {
+            matchType = "NONE";
+        }
+
+        if ("NONE".equals(matchType)) {
+            return;
+        }
+
+        Long lostItemId = ItemConstants.Type.LOST.equals(item1.getType()) ? item1.getId() : item2.getId();
+        Long foundItemId = ItemConstants.Type.FOUND.equals(item1.getType()) ? item1.getId() : item2.getId();
+
+        LambdaQueryWrapper<Match> existingWrapper = new LambdaQueryWrapper<>();
+        existingWrapper.eq(Match::getLostItemId, lostItemId);
+        existingWrapper.eq(Match::getFoundItemId, foundItemId);
+        Long existingCount = matchRepository.selectCount(existingWrapper);
+
+        if (existingCount > 0) {
+            log.debug("匹配记录已存在: item1={}, item2={}", item1.getId(), item2.getId());
+            return;
+        }
+
+        Match match = new Match();
+        match.setLostItemId(lostItemId);
+        match.setFoundItemId(foundItemId);
+        match.setScore(score);
+        match.setMatchType(matchType);
+        match.setStatus("PENDING");
+        match.setIsRead(0);
+        match.setCreatedAt(LocalDateTime.now());
+
+        matchRepository.insert(match);
+        log.info("创建匹配: lost={}, found={}, score={}, type={}", lostItemId, foundItemId, score, matchType);
+
+        try {
+            notificationService.notifyMatchFound(lostItemId, match.getId());
+            notificationService.notifyMatchFound(foundItemId, match.getId());
+        } catch (Exception e) {
+            log.error("发送匹配通知失败", e);
+        }
+    }
+
+    private record ScoredCandidate(Item item, BigDecimal score) {
+    }
+
+    @Override
+    @Transactional
+    public void matchAll() {
+        LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Item::getStatus, ItemConstants.Status.APPROVED);
+
+        List<Item> items = itemRepository.selectList(wrapper);
+        log.info("开始批量匹配，总物品数: {}", items.size());
+
+        for (int i = 0; i < items.size(); i++) {
+            for (int j = i + 1; j < items.size(); j++) {
+                Item item1 = items.get(i);
+                Item item2 = items.get(j);
+
+                if (!item1.getType().equals(item2.getType())) {
+                    BigDecimal score = calculateScore(item1, item2);
+                    saveMatch(item1, item2, score);
+                }
+            }
+        }
+
+        log.info("批量匹配完成");
+    }
+
+    @Override
+    public PageResponse<Match> getMatches(Long itemId, int page, int pageSize) {
+        LambdaQueryWrapper<Match> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Match::getLostItemId, itemId)
+                .or()
+                .eq(Match::getFoundItemId, itemId);
+        wrapper.ne(Match::getStatus, "REJECTED");
+        wrapper.orderByDesc(Match::getScore);
+
+        Page<Match> result = matchRepository.selectPage(new Page<>(page, pageSize), wrapper);
+        return PageResponse.of(enrichMatches(result.getRecords()), result.getTotal(), page, pageSize);
+    }
+
+    @Override
+    public PageResponse<Match> getAllMatches(int page, int pageSize) {
+        LambdaQueryWrapper<Match> wrapper = new LambdaQueryWrapper<>();
+        wrapper.orderByDesc(Match::getCreatedAt);
+
+        Page<Match> result = matchRepository.selectPage(new Page<>(page, pageSize), wrapper);
+        return PageResponse.of(enrichMatches(result.getRecords()), result.getTotal(), page, pageSize);
+    }
+
+    @Override
+    public PageResponse<Match> getUserMatches(Long userId, int page, int pageSize) {
+        LambdaQueryWrapper<Item> itemWrapper = new LambdaQueryWrapper<>();
+        itemWrapper.eq(Item::getUserId, userId);
+        List<Item> myItems = itemRepository.selectList(itemWrapper);
+
+        if (myItems.isEmpty()) {
+            return PageResponse.of(new ArrayList<>(), 0, page, pageSize);
+        }
+
+        List<Long> itemIds = myItems.stream().map(Item::getId).toList();
+        LambdaQueryWrapper<Match> wrapper = new LambdaQueryWrapper<>();
+        wrapper.and(w -> w.in(Match::getLostItemId, itemIds).or().in(Match::getFoundItemId, itemIds));
+        wrapper.orderByDesc(Match::getCreatedAt);
+
+        Page<Match> result = matchRepository.selectPage(new Page<>(page, pageSize), wrapper);
+        return PageResponse.of(enrichMatches(result.getRecords()), result.getTotal(), page, pageSize);
+    }
+
+    @Override
+    @Transactional
+    public void confirmMatch(Long matchId, Long userId) {
+        Match match = matchRepository.selectById(matchId);
+        if (match == null) {
+            throw new BusinessException("匹配记录不存在");
+        }
+
+        Item lostItem = itemRepository.selectById(match.getLostItemId());
+        Item foundItem = itemRepository.selectById(match.getFoundItemId());
+        validateMatchOwnership(userId, lostItem, foundItem);
+
+        match.setStatus("CONFIRMED");
+        match.setUpdatedAt(LocalDateTime.now());
+        matchRepository.updateById(match);
+
+        if (lostItem != null) {
+            lostItem.setMatchItemId(foundItem.getId());
+            lostItem.setMatchScore(match.getScore());
+            lostItem.setUpdatedAt(LocalDateTime.now());
+            itemRepository.updateById(lostItem);
+        }
+        if (foundItem != null) {
+            foundItem.setMatchItemId(lostItem.getId());
+            foundItem.setMatchScore(match.getScore());
+            foundItem.setUpdatedAt(LocalDateTime.now());
+            itemRepository.updateById(foundItem);
+        }
+
+        log.info("用户{} 确认匹配 {}", userId, matchId);
+    }
+
+    @Override
+    @Transactional
+    public void rejectMatch(Long matchId, Long userId, String reason) {
+        Match match = matchRepository.selectById(matchId);
+        if (match == null) {
+            throw new BusinessException("匹配记录不存在");
+        }
+
+        Item lostItem = itemRepository.selectById(match.getLostItemId());
+        Item foundItem = itemRepository.selectById(match.getFoundItemId());
+        validateMatchOwnership(userId, lostItem, foundItem);
+
+        match.setStatus("REJECTED");
+        match.setUpdatedAt(LocalDateTime.now());
+        matchRepository.updateById(match);
+
+        log.info("用户{} 拒绝匹配 {}: {}", userId, matchId, reason);
+    }
+
+    @Override
+    public List<Match> getMyMatchNotifications(Long userId) {
+        LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Item::getUserId, userId);
+        List<Item> myItems = itemRepository.selectList(wrapper);
+
+        List<Long> itemIds = new ArrayList<>();
+        for (Item item : myItems) {
+            itemIds.add(item.getId());
+        }
+
+        if (itemIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        LambdaQueryWrapper<Match> matchWrapper = new LambdaQueryWrapper<>();
+        matchWrapper.and(w -> w.in(Match::getLostItemId, itemIds).or().in(Match::getFoundItemId, itemIds));
+        matchWrapper.eq(Match::getIsRead, 0);
+        matchWrapper.orderByDesc(Match::getCreatedAt);
+
+        return matchRepository.selectList(matchWrapper);
+    }
+
+    private void validateMatchOwnership(Long userId, Item lostItem, Item foundItem) {
+        if (lostItem == null || foundItem == null) {
+            throw new BusinessException("匹配关联的物品不存在");
+        }
+
+        boolean isOwner = userId.equals(lostItem.getUserId()) || userId.equals(foundItem.getUserId());
+        if (!isOwner) {
+            throw new BusinessException("无权操作该匹配记录");
+        }
+    }
+
+    private List<Match> enrichMatches(List<Match> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return matches;
+        }
+
+        List<Long> itemIds = new ArrayList<>();
+        for (Match match : matches) {
+            itemIds.add(match.getLostItemId());
+            itemIds.add(match.getFoundItemId());
+        }
+
+        Map<Long, Item> itemMap = new HashMap<>();
+        for (Item item : itemRepository.selectBatchIds(itemIds)) {
+            itemMap.put(item.getId(), item);
+        }
+
+        for (Match match : matches) {
+            Item lostItem = itemMap.get(match.getLostItemId());
+            Item foundItem = itemMap.get(match.getFoundItemId());
+            if (lostItem != null) {
+                match.setLostItemTitle(lostItem.getTitle());
+                match.setLostItemCategory(lostItem.getCategory());
+            }
+            if (foundItem != null) {
+                match.setFoundItemTitle(foundItem.getTitle());
+                match.setFoundItemCategory(foundItem.getCategory());
+            }
+        }
+
+        return matches;
+    }
+}

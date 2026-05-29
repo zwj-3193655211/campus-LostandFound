@@ -1,0 +1,355 @@
+<template>
+  <div class="match-list-page app-page">
+    <div class="page-header app-page-header">
+      <div>
+        <div class="app-page-title">
+          <el-icon class="page-icon"><Connection /></el-icon>
+          <h2>匹配列表</h2>
+        </div>
+        <p class="app-page-subtitle">系统为您匹配的可能相关物品</p>
+      </div>
+    </div>
+
+    <div class="stats-row app-surface app-panel">
+      <el-statistic title="匹配总数" :value="matches.length" />
+      <el-statistic title="待确认" :value="pendingCount" />
+      <el-statistic title="已确认" :value="confirmedCount" />
+      <el-statistic title="已拒绝" :value="rejectedCount" />
+    </div>
+
+    <div class="filter-bar">
+      <el-select v-model="filterStatus" placeholder="筛选状态" @change="handleFilter">
+        <el-option label="全部" value="" />
+        <el-option label="待确认" value="PENDING" />
+        <el-option label="已确认" value="CONFIRMED" />
+        <el-option label="已拒绝" value="REJECTED" />
+      </el-select>
+    </div>
+
+    <div class="match-list">
+      <el-card 
+        v-for="match in filteredMatches" 
+        :key="match.id" 
+        class="match-card"
+        shadow="never"
+      >
+        <div class="match-header">
+          <div class="match-score">
+            <span class="score-label">匹配度</span>
+            <span class="score-value" :class="getScoreClass(match.score)">
+              {{ formatScore(match.score) }}
+            </span>
+          </div>
+          <el-tag :type="getStatusTagType(match.status)">
+            {{ getStatusText(match.status) }}
+          </el-tag>
+        </div>
+
+        <div class="match-content">
+          <div class="item-pair">
+            <div class="item-box lost">
+              <h4>寻物启示</h4>
+              <p class="item-title">{{ match.lostItemTitle || '寻物启示' }}</p>
+              <p class="item-category">{{ match.lostItemCategory || '未分类' }}</p>
+            </div>
+            
+            <div class="arrow">
+              <el-icon :size="32"><ArrowRight /></el-icon>
+            </div>
+            
+            <div class="item-box found">
+              <h4>失物招领</h4>
+              <p class="item-title">{{ match.foundItemTitle || '失物招领' }}</p>
+              <p class="item-category">{{ match.foundItemCategory || '未分类' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="match-footer">
+          <span class="match-time">匹配时间: {{ formatDate(match.createdAt) }}</span>
+          <div class="actions">
+            <el-button 
+              v-if="match.status === 'PENDING'" 
+              @click="handleConfirm(match.id)" 
+              type="success" 
+              size="small"
+            >
+              确认匹配
+            </el-button>
+            <el-button 
+              v-if="match.status === 'PENDING'" 
+              @click="handleReject(match.id)" 
+              type="danger" 
+              size="small"
+            >
+              拒绝匹配
+            </el-button>
+            <el-button 
+              @click="goDetail(match.lostItemId)" 
+              type="default" 
+              size="small"
+            >
+              查看详情
+            </el-button>
+          </div>
+        </div>
+      </el-card>
+
+      <div v-if="filteredMatches.length === 0" class="empty-state">
+        <el-icon :size="64" class="empty-icon"><Search /></el-icon>
+        <p>暂无匹配记录</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { ArrowRight, Search, Connection } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import { useItemStore } from '../stores/item'
+import { formatDate } from '../utils/format'
+import { showError, showSuccess } from '../utils/message'
+
+const router = useRouter()
+const itemStore = useItemStore()
+
+const matches = ref([])
+const filterStatus = ref('')
+
+const pendingCount = computed(() => matches.value.filter(m => m.status === 'PENDING').length)
+const confirmedCount = computed(() => matches.value.filter(m => m.status === 'CONFIRMED').length)
+const rejectedCount = computed(() => matches.value.filter(m => m.status === 'REJECTED').length)
+
+const filteredMatches = computed(() => {
+  if (!filterStatus.value) return matches.value
+  return matches.value.filter(m => m.status === filterStatus.value)
+})
+
+const getScoreClass = (score) => {
+  if (score === null || score === undefined) return 'low'
+  const num = typeof score === 'number' ? score : parseFloat(score)
+  if (num > 1) {
+    return num >= 80 ? 'high' : num >= 60 ? 'medium' : 'low'
+  }
+  return num >= 0.8 ? 'high' : num >= 0.6 ? 'medium' : 'low'
+}
+
+const formatScore = (score) => {
+  if (score === null || score === undefined) return '0%'
+  if (typeof score === 'number') {
+    return score > 1 ? Math.round(score * 100) + '%' : Math.round(score * 100) + '%'
+  }
+  const num = parseFloat(score)
+  return num > 1 ? Math.round(num) + '%' : Math.round(num * 100) + '%'
+}
+
+const getStatusTagType = (status) => {
+  const statusMap = {
+    'PENDING': 'warning',
+    'CONFIRMED': 'success',
+    'REJECTED': 'danger'
+  }
+  return statusMap[status] || 'default'
+}
+
+const getStatusText = (status) => {
+  const statusMap = {
+    'PENDING': '待确认',
+    'CONFIRMED': '已确认',
+    'REJECTED': '已拒绝'
+  }
+  return statusMap[status] || status
+}
+
+const handleFilter = () => {
+  // 筛选已经通过computed处理
+}
+
+const handleConfirm = async (matchId) => {
+  try {
+    await itemStore.confirmMatch(matchId)
+    const match = matches.value.find(m => m.id === matchId)
+    if (match) match.status = 'CONFIRMED'
+    showSuccess('匹配确认成功')
+  } catch (error) {
+    console.error('确认失败:', error)
+    showError(error?.message || '匹配确认失败')
+  }
+}
+
+const handleReject = async (matchId) => {
+  try {
+    await itemStore.rejectMatch(matchId)
+    const match = matches.value.find(m => m.id === matchId)
+    if (match) match.status = 'REJECTED'
+    showSuccess('匹配已拒绝')
+  } catch (error) {
+    console.error('拒绝失败:', error)
+    showError(error?.message || '匹配拒绝失败')
+  }
+}
+
+const goDetail = (itemId) => {
+  router.push(`/item/${itemId}`)
+}
+
+onMounted(async () => {
+  try {
+    const result = await itemStore.fetchMatches({ pageSize: 50 })
+    matches.value = result?.records || []
+  } catch (error) {
+    console.error('获取匹配列表失败:', error)
+    showError(error?.message || '获取匹配列表失败')
+  }
+})
+</script>
+
+<style scoped>
+.match-list-page {
+  margin: 0 auto;
+  max-width: var(--app-max-width-medium);
+}
+
+.page-header {
+  margin-bottom: 0;
+}
+
+.stats-row {
+  display: flex;
+  gap: 40px;
+  margin-bottom: 0;
+  flex-wrap: wrap;
+}
+
+.filter-bar {
+  margin-bottom: 0;
+}
+
+.match-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.match-card {
+  border-radius: var(--app-radius);
+  border: 1px solid var(--app-border);
+  overflow: hidden;
+}
+
+.match-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.match-score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.score-label {
+  font-size: 14px;
+  color: var(--app-muted);
+}
+
+.score-value {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.score-value.high {
+  color: var(--app-success);
+}
+
+.score-value.medium {
+  color: var(--app-warning);
+}
+
+.score-value.low {
+  color: var(--app-danger);
+}
+
+.item-pair {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.item-box {
+  flex: 1;
+  padding: 16px;
+  border-radius: var(--app-radius-sm);
+  border: 1px solid var(--app-border);
+}
+
+.item-box.lost {
+  background: var(--app-danger-bg);
+  border-left: 4px solid var(--app-danger);
+}
+
+.item-box.found {
+  background: var(--app-success-bg);
+  border-left: 4px solid var(--app-success);
+}
+
+.item-box h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--app-muted);
+}
+
+.item-box .item-title {
+  margin: 0 0 4px 0;
+  font-weight: bold;
+}
+
+.item-box .item-category {
+  margin: 0;
+  font-size: 14px;
+  color: var(--app-muted);
+}
+
+.arrow {
+  color: var(--app-primary);
+}
+
+.match-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--app-border);
+  gap: var(--app-space-4);
+  flex-wrap: wrap;
+}
+
+.match-time {
+  color: var(--app-muted);
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px;
+  color: var(--app-muted);
+}
+
+.empty-icon {
+  margin-bottom: 16px;
+  color: var(--app-gray-200);
+}
+
+.page-icon {
+  color: var(--app-primary);
+}
+</style>

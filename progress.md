@@ -1,0 +1,88 @@
+# 进度日志
+
+## 2026-05-27
+- 初始化任务规划文件：`task_plan.md`、`findings.md`、`progress.md`。
+- 完成根目录结构扫描，确认存在 `backend`、`frontend`、`docs` 三个核心区域。
+- 下一步将并行核查后端安全配置、数据库脚本与前端登录链路。
+- 已确认需求：`CAMPUS_ADMIN` 可访问后台，`/api/db/**` 仅允许超管，初始化收敛为 SQL 基线。
+- 已修复后端权限矩阵、JWT access token 校验、注册时间字段缺失、认证测试脆弱依赖。
+- 已修复前端统一响应解析、登录状态持久化、重复登录实现、管理员路由守卫和后台审核调用。
+- 已将 `DataInitializer` 与 `DatabaseFixRunner` 改为默认关闭，避免应用启动时再隐式改库或注入另一套演示数据。
+- 已更新 `docs/sql/complete_init.sql` 以补齐通知字段和物品详细位置字段。
+- 验证结果：`backend` 执行 `mvn test` 通过；`frontend` 执行 `npm run build` 通过。
+- 第二轮已修复匹配资源归属校验和普通用户匹配可见范围。
+- 第二轮已修复“我的物品”接口真实按当前用户过滤，前端已改为走 `/api/items/my`。
+- 第二轮已实现后台用户管理真实接口与前端对接，并按需求限制 `CAMPUS_ADMIN` 只可启用/禁用普通用户。
+- 第二轮已为匹配记录补充关联物品标题/类别字段，并对用户返回做密码脱敏。
+- 第二轮验证结果：再次执行 `backend` 的 `mvn test` 通过；再次执行 `frontend` 的 `npm run build` 通过。
+- 第三轮已将每日统计日期字段改为 `LocalDate`，并补齐当日匹配成功数、认领数统计。
+- 第三轮已补齐热门位置统计和通知中心真实接口（列表、未读数、单条已读、全部已读）。
+- 第三轮已将前端通知 store 对接到真实通知接口，顶部通知铃铛未读数改为读取后端真实值。
+- 第三轮验证结果：再次执行 `backend` 的 `mvn test` 通过；再次执行 `frontend` 的 `npm run build` 通过。
+- 第四轮已补齐位置管理真实接口与前端管理页，支持位置增删改。
+- 第四轮已补齐后台 `/admin/locations` 与 `/admin/statistics` 路由，管理员面板快捷入口已可直达真实页面。
+- 第四轮已为通知弹窗补充业务跳转，匹配通知与审核结果通知不再只是静态展示。
+- 第四轮验证结果：再次执行 `backend` 的 `mvn test` 通过；再次执行 `frontend` 的 `npm run build` 通过。
+- 第五轮已为登录返回、个人资料返回、后台用户列表及公开物品接口补齐敏感字段脱敏与裁剪。
+- 第五轮已收紧物品编辑删除门禁，仅允许待审核物品由所有者编辑或删除。
+- 第五轮已重建前端公共壳层，修复登录/注册切换事件、受保护页面守卫和发布页编辑模式。
+- 第五轮已新增脱敏工具测试、物品状态门禁测试，并收紧 `AuthServiceTest` 测试环境与断言。
+- 第五轮验证结果：再次执行 `backend` 的 `mvn test` 通过；再次执行 `frontend` 的 `npm run build` 通过。
+- 第六轮已将数据库、邮件、JWT 默认敏感值改为安全占位，并新增 `application-test.yml` 与 H2 测试依赖。
+- 第六轮已将 `AuthServiceTest` 改为单元测试，切断对真实数据库和基础设施的依赖。
+- 第六轮已将后台用户管理接口改为 DTO 请求体并增加角色、状态参数校验。
+- 第六轮已为认领审核结果新增独立通知链路，改为通知认领申请人而不是复用物品审核通知。
+- 第六轮已补齐前端列表页与 URL 查询参数同步，首页搜索、分类跳转、筛选和翻页可与地址栏联动。
+- 第六轮验证结果：再次执行 `backend` 的 `mvn test` 通过；再次执行 `frontend` 的 `npm run build` 通过。
+- 第七轮已完成前端核心页面消息交互统一，`alert/confirm` 已收敛为 `Element Plus` 消息与确认框。
+- 第七轮已完成前端路由懒加载和 `Vite manualChunks` 分包，前端构建通过。
+- 第七轮已新增 `WebSecurityConfigTest`，覆盖公开接口、匿名受限接口、管理员接口和超管数据库接口的访问矩阵。
+- 第七轮在权限测试中发现并修复多个控制器 `@RequestParam` 未显式命名导致的运行时 `IllegalArgumentException`。
+- 第七轮验证结果：执行 `frontend` 的 `npm run build` 通过；执行 `backend` 的 `mvn -Dtest=WebSecurityConfigTest test` 通过；执行 `backend` 的 `mvn test` 通过。
+- 第八轮已新增 `JwtSecurityIntegrationTest`，使用真实 `JwtUtils` 生成 token，并通过完整过滤器链验证 JWT 鉴权行为。
+- 第八轮已覆盖 `access token`、`refresh token`、角色升级/降级漂移、禁用用户访问受保护接口等高价值安全场景。
+- 第八轮验证结果：执行 `backend` 的 `mvn -Dtest=JwtSecurityIntegrationTest test` 通过；执行 `backend` 的 `mvn test` 通过。
+- 第九轮已按确认后的需求重构状态流：`已匹配` 改为高分匹配派生标签，阈值固定 `80%`；审核拒绝改为独立状态 `REJECTED`。
+- 第九轮已新增 `item_completion_requests` 完成状态申请链路，支持用户提交“已找到 / 已归还”申请并由管理员审核生效。
+- 第九轮已补真实待审核物品接口、审核通过后自动匹配、认领申请入口、完成申请审核接口和通知类型枚举同步。
+- 第九轮已接入图床代理上传接口 `/api/uploads/images`，默认上传到 `r2`；发布页可上传图片，后端会持久化 `item_images` 并在详情/卡片展示。
+- 第九轮已扩展后端搜索字段，并修复前端列表页搜索/翻页的重复请求问题。
+- 第九轮验证结果：执行 `frontend` 的 `npm run build` 通过；执行 `backend` 的 `mvn -Dtest=WebSecurityConfigTest,JwtSecurityIntegrationTest,ItemServiceImplTest,VerificationServiceImplTest test` 通过；执行 `backend` 的 `mvn test` 通过。
+- 第十轮已新增 `docs/sql/phase9_migration.sql`，为已存在的 MySQL 库提供显式升级脚本，覆盖状态枚举、通知类型和 `item_completion_requests` 表。
+- 第十轮已重构 `一键启动.bat`，改为环境自检 + 数据库初始化/迁移 + 调用 `启动后端.bat` / `启动前端.bat` 的稳定链路。
+- 第十轮已新增 `启动后端.bat`，并补 `启动前端.bat` 到项目根目录，README 启动文档已同步更新。
+- 第十轮已修复一键启动后前端空白、接口 `ECONNREFUSED` 的问题，根因是后端原有 `start ... cmd /k` 嵌套命令过脆，未真正成功拉起后端。
+- 第十轮验证结果：一键启动脚本在当前环境可完成数据库迁移、构建和启动命令下发；分别执行前后端启动脚本后，`http://localhost:8081/swagger-ui.html` 与 `http://localhost:3000` 均返回 `200`。
+- 第十一轮已完成代码审查与实现文档补齐，新增架构、数据库、测试质量、代码审查 4 份文档，并把 README 链接到新文档。
+- 第十一轮发现 `WebSecurityConfigTest` 因新增 `UserIdentityVerificationRepository` 后缺少 `@MockBean` 而失败，已修复并重新验证。
+- 第十一轮验证结果：执行 `backend` 的 `mvn "-Dtest=WebSecurityConfigTest" test` 通过；执行 `backend` 的 `mvn test` 通过；执行 `backend` 的 `mvn -DskipTests package` 通过；执行 `frontend` 的 `npm run build` 通过。
+- 第十二轮已收紧 `DbFixController`：增加 `app.db-fix-enabled` 条件装配，默认不开启；并修复异常分支返回 `ApiResponse.error(...)`。
+- 第十二轮定位到条件装配属性名回归：原实现使用 `app.db-fix.enabled`，导致测试环境即使开启配置也不会注册控制器；现已修正并通过权限测试验证。
+- 第十二轮已为 `DbFixController` 补失败分支测试，确保数据库修表异常时返回错误响应而不是伪成功。
+- 第十二轮已新增 `HttpClientConfig`，统一注入带超时的 `RestTemplate`；`ImageUploadServiceImpl` 已补 10MB 限制、MIME/扩展名白名单和图床 URL 校验。
+- 第十二轮已新增 `ImageUploadServiceImplTest`，覆盖空文件、超大文件、非法类型、图床失败和成功上传五类关键分支。
+- 第十二轮验证结果：执行 `backend` 的 `mvn "-Dtest=WebSecurityConfigTest,ImageUploadServiceImplTest" test` 通过；执行 `backend` 的 `mvn test` 通过；执行 `backend` 的 `mvn -DskipTests package` 通过。
+- 第十三轮已新增 `DbFixControllerConditionalTest`，验证 `app.db-fix-enabled` 关闭时不注册、开启时才注册 `DbFixController`。
+- 第十三轮已扩展 `VerificationServiceImplTest`，补充重复审核拦截与通知失败兜底测试。
+- 第十三轮已新增 `ItemCompletionRequestServiceImplTest`，补完成申请审核通过、审核拒绝、已处理申请不可重复审核测试。
+- 第十三轮验证结果：执行 `backend` 的 `mvn "-Dtest=DbFixControllerConditionalTest,VerificationServiceImplTest,ItemCompletionRequestServiceImplTest" test` 通过；执行 `backend` 的 `mvn test` 通过；执行 `backend` 的 `mvn -DskipTests package` 通过。
+- 第十四轮已为 `VerificationController` 和 `AdminCompletionRequestController` 补 Web 层参数校验：拒绝审核时必须填写原因，非法 `approved` 参数返回 `400`。
+- 第十四轮已为 `GlobalExceptionHandler` 补 `MethodArgumentTypeMismatchException` 与 `MissingServletRequestParameterException` 处理，避免请求参数错误落成 `500`。
+- 第十四轮在回归中再次发现 `@PathVariable` 未显式命名的运行时问题，现已为新增审核控制器补齐 `@PathVariable("id")`。
+- 第十四轮验证结果：执行 `backend` 的 `mvn "-Dtest=WebSecurityConfigTest" test` 通过；执行 `backend` 的 `mvn test` 通过；执行 `backend` 的 `mvn -DskipTests package` 通过。
+- 第十五轮已将认领审核与完成申请审核改为按 `id + PENDING` 的条件原子更新，缩小并发下“先查后改”的状态窗口。
+- 第十五轮已为完成申请通过场景增加关联物品条件更新保护；若物品状态已漂移，会回滚并提示“关联物品状态已变更，请刷新后重试”。
+- 第十五轮已扩展 `VerificationServiceImplTest`、`ItemCompletionRequestServiceImplTest`、`WebSecurityConfigTest`，覆盖并发二次审核拦截、缺失 `approved` 参数、关联物品状态漂移保护。
+- 第十五轮验证结果：执行 `backend` 的 `mvn "-Dtest=WebSecurityConfigTest,VerificationServiceImplTest,ItemCompletionRequestServiceImplTest" test` 通过；执行 `backend` 的 `mvn test` 通过；执行 `backend` 的 `mvn -DskipTests package` 通过。
+- 第十六轮已新增 `ReviewConcurrencyIntegrationTest`，用真实 H2 数据库、真实事务和双线程并发验证认领审核与完成申请审核的数据库级并发拦截。
+- 第十六轮为集成测试补了最小建表与数据清理逻辑，保证在 H2 空库环境下也能独立验证审核链路。
+- 第十六轮验证结果：执行 `backend` 的 `mvn "-Dtest=ReviewConcurrencyIntegrationTest" test` 通过；执行 `backend` 的 `mvn test` 通过；执行 `backend` 的 `mvn -DskipTests package` 通过。
+- 第十七轮已为前端引入 Vitest，并新增 `npm test` 脚本与测试环境配置。
+- 第十七轮已补前端路由守卫测试与 `401` 清理登录态测试，并对 `router/index.js`、`utils/axios.js` 做最小可测试性改造（导出 guard/client 工厂）。
+- 第十七轮验证结果：执行 `frontend` 的 `npm test` 通过；执行 `frontend` 的 `npm run build` 通过。
+
+## 2026-05-28
+- 已优化智能匹配：引入“文本相似度（标题/描述/位置）+ 平滑时间衰减 + 串号冲突惩罚”，并对单次匹配做候选集约束与 TopK 精排，降低同类物品误匹配并控制匹配成本。
+- 已修复匹配落库缺陷：创建 `matches` 记录时补齐 `lost_item_id/found_item_id/score`，与 SQL 基线的 NOT NULL 约束一致。
+- 已移除“悬赏金”设计：前端不再提供悬赏金额输入与展示，后端 API 不再接收/返回 reward 字段；SQL 基线移除 `items.reward`，并新增显式迁移脚本 `phase10_remove_reward.sql`。
+- 回归结果：`backend` 执行 `mvn -pl backend test` 通过；`frontend` 执行 `npm test` 与 `npm run build` 通过。
