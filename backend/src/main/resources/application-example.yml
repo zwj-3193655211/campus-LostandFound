@@ -10,8 +10,8 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/campus_lostfound?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
-    username: root
-    password: zwj123456
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
 
   data:
     redis:
@@ -19,19 +19,6 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: ${REDIS_DATABASE:0}
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-          max-wait: -1ms
-
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
-    virtual-host: ${RABBITMQ_VHOST:/}
 
   servlet:
     multipart:
@@ -39,10 +26,10 @@ spring:
       max-request-size: 10MB
 
   mail:
-    host: smtp.163.com
-    port: 465
-    username: 19721623703@163.com
-    password: SCRLKy8UaApwdSi5
+    host: ${MAIL_HOST:smtp.163.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -54,7 +41,6 @@ mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       id-type: auto
@@ -63,7 +49,7 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 jwt:
-  secret: ${JWT_SECRET:please-configure-jwt-secret-in-environment}
+  secret: ${JWT_SECRET:请在生产环境设置JWT密钥}
   access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000}
   refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}
 
@@ -73,15 +59,7 @@ app:
   auto-fix-schema: ${APP_AUTO_FIX_SCHEMA:false}
   db-fix-enabled: ${APP_DB_FIX_ENABLED:false}
 
-image-bed:
-  upload-url: ${IMAGE_BED_UPLOAD_URL:https://img.scdn.io/api/v1.php}
-  storage-destination: ${IMAGE_BED_STORAGE_DESTINATION:r2}
-  output-format: ${IMAGE_BED_OUTPUT_FORMAT:auto}
-  cdn-domain: ${IMAGE_BED_CDN_DOMAIN:}
-
 logging:
   level:
     com.campus.lostfound: debug
     org.springframework.security: info
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

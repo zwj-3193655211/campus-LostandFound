@@ -32,6 +32,14 @@ npm-debug.log*
 .env.local
 .env.*.local
 
+# Configuration with sensitive data
+backend/src/main/resources/application.yml
+backend/src/main/resources/application-prod.yml
+backend/src/main/resources/application-dev.yml
+
+# Example configuration (safe to commit)
+!backend/src/main/resources/application-example.yml
+
 # Build
 *.tgz
 
