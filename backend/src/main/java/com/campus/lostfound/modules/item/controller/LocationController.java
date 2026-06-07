@@ -2,12 +2,14 @@ package com.campus.lostfound.modules.item.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campus.lostfound.common.result.ApiResponse;
+import com.campus.lostfound.modules.common.service.RedisCacheService;
 import com.campus.lostfound.modules.item.entity.Item;
 import com.campus.lostfound.modules.item.entity.Location;
 import com.campus.lostfound.modules.item.repository.ItemRepository;
 import com.campus.lostfound.modules.item.repository.LocationRepository;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,18 +22,30 @@ public class LocationController {
 
     private final LocationRepository locationRepository;
     private final ItemRepository itemRepository;
+    private final RedisCacheService cacheService;
 
-    public LocationController(LocationRepository locationRepository, ItemRepository itemRepository) {
+    public LocationController(LocationRepository locationRepository,
+                               ItemRepository itemRepository,
+                               RedisCacheService cacheService) {
         this.locationRepository = locationRepository;
         this.itemRepository = itemRepository;
+        this.cacheService = cacheService;
     }
 
     /**
-     * 获取所有位置
+     * 获取所有位置（带缓存）
      */
     @GetMapping
     public ApiResponse<List<Location>> list() {
-        return ApiResponse.success(locationRepository.selectList(null));
+        @SuppressWarnings("unchecked")
+        List<Location> cached = (List<Location>) cacheService.get(RedisCacheService.PREFIX_LOCATION + "all");
+        if (cached != null) {
+            return ApiResponse.success(cached);
+        }
+
+        List<Location> locations = locationRepository.selectList(null);
+        cacheService.set(RedisCacheService.PREFIX_LOCATION + "all", locations, Duration.ofHours(RedisCacheService.LONG_TTL));
+        return ApiResponse.success(locations);
     }
 
     /**
@@ -51,6 +65,8 @@ public class LocationController {
         location.setCreatedAt(LocalDateTime.now());
         location.setUpdatedAt(LocalDateTime.now());
         locationRepository.insert(location);
+        // 清除地点缓存
+        cacheService.clearLocationCache();
         return ApiResponse.success("创建成功", location);
     }
 
@@ -85,6 +101,8 @@ public class LocationController {
         }
 
         locationRepository.deleteById(id);
+        // 清除地点缓存
+        cacheService.clearLocationCache();
         return ApiResponse.success("删除成功", null);
     }
 }

@@ -1,60 +1,72 @@
 <template>
-  <el-card class="item-card" @click="goDetail" shadow="never">
-    <div class="card-header">
-      <el-tag :type="getTypeColor(item.type)" size="small">
+  <div class="item-card" @click="goDetail">
+    <div class="card-badge-wrapper">
+      <el-tag :type="getTypeColor(item.type)" class="card-badge type-badge">
+        <el-icon :size="14"><component :is="item.type === 'LOST' ? Search : Plus" /></el-icon>
         {{ item.type === 'LOST' ? '寻物' : '招领' }}
       </el-tag>
-      <el-tag v-if="item.highConfidenceMatched" type="danger" size="small">
+      <el-tag v-if="item.highConfidenceMatched" type="success" class="card-badge matched-badge">
+        <el-icon :size="14"><CircleCheck /></el-icon>
         已匹配
       </el-tag>
-      <el-tag v-if="item.pendingCompletionStatus === 'PENDING'" type="warning" size="small">
-        完成审核中
-      </el-tag>
-      <el-tag v-if="item.potentialOwnerNotified" type="success" size="small">
-        疑似失主已通知
-      </el-tag>
-      <el-tag :type="getStatusColor(item.status)" size="small">
-        {{ formatStatus(item.status) }}
+      <el-tag v-if="item.status === 'PENDING'" type="warning" class="card-badge pending-badge">
+        <el-icon :size="14"><Clock /></el-icon>
+        待审核
       </el-tag>
     </div>
 
-    <div class="card-body">
-      <div class="cover-wrapper">
-        <img :src="coverImage" class="cover-image" alt="物品图片" />
+    <div class="card-image-wrapper">
+      <img :src="coverImage" class="card-image" alt="物品图片" />
+      <div class="image-overlay">
+        <div class="view-detail">
+          <el-icon><View /></el-icon>
+          <span>查看详情</span>
+        </div>
       </div>
-      <h3 class="item-title">{{ item.title }}</h3>
-      <p class="item-description">{{ truncate(item.description) }}</p>
+      <div class="image-shine"></div>
+      <div class="image-count" v-if="item.images?.length > 1">
+        <el-icon :size="12"><Picture /></el-icon>
+        <span>{{ item.images.length }}</span>
+      </div>
+    </div>
+
+    <div class="card-content">
+      <h3 class="card-title">{{ item.title }}</h3>
+      <p class="card-description">{{ truncate(item.description) }}</p>
       
-      <div class="item-info">
-        <div class="info-item">
-          <el-icon><Location /></el-icon>
-          <span>{{ item.location || '未知位置' }}</span>
+      <div class="card-info">
+        <div class="info-row">
+          <el-icon :size="16" class="info-icon"><Location /></el-icon>
+          <span class="info-text">{{ item.location || '未知位置' }}</span>
         </div>
-        <div class="info-item">
-          <el-icon><Calendar /></el-icon>
-          <span>{{ formatTime(item.type === 'LOST' ? item.lostTime : item.foundTime) }}</span>
+        <div class="info-row">
+          <el-icon :size="16" class="info-icon"><Calendar /></el-icon>
+          <span class="info-text">{{ formatTime(item.type === 'LOST' ? item.lostTime : item.foundTime) }}</span>
         </div>
       </div>
 
-      <div class="item-meta">
-        <span class="category">{{ item.category }}</span>
-        <span v-if="item.brand" class="brand">{{ item.brand }}</span>
-        <span v-if="item.color" class="color">{{ item.color }}</span>
-      </div>
-
-      <div class="item-footer">
-        <span class="author">{{ getAuthorName(item.userId) }}</span>
+      <div class="card-tags">
+        <span class="tag category-tag">{{ item.category }}</span>
+        <span v-if="item.brand" class="tag brand-tag">{{ item.brand }}</span>
+        <span v-if="item.color" class="tag color-tag">{{ item.color }}</span>
       </div>
     </div>
-  </el-card>
+
+    <div class="card-footer">
+      <span class="author-name">{{ getAuthorName(item.userId) }}</span>
+      <el-icon :size="14" class="arrow-icon"><ArrowRight /></el-icon>
+    </div>
+
+    <div class="card-glow"></div>
+  </div>
 </template>
 
 <script setup>
-import { Location, Calendar } from '@element-plus/icons-vue'
+import { Search, Plus, CircleCheck, Clock, View, Location, Calendar, ArrowRight, Picture } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useItemStore } from '../stores/item'
-import { buildPlaceholderImage, formatDate, formatStatus, getStatusColor, getTypeColor } from '../utils/format'
+import { buildPlaceholderImage, formatDate, getTypeColor } from '../utils/format'
 
 const props = defineProps({
   item: {
@@ -73,7 +85,7 @@ const goDetail = () => {
 }
 
 const getAuthorName = (userId) => {
-  return itemStore.getUserName(userId)
+  return itemStore.getUserName(userId) || '匿名用户'
 }
 
 const formatTime = (timeStr) => {
@@ -81,104 +93,302 @@ const formatTime = (timeStr) => {
 }
 
 const truncate = (text) => {
-  if (!text) return ''
-  return text.length > 60 ? text.substring(0, 60) + '...' : text
+  if (!text) return '暂无描述'
+  return text.length > 50 ? text.substring(0, 50) + '...' : text
 }
 </script>
 
 <style scoped>
 .item-card {
-  cursor: pointer;
-  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
-  margin-bottom: 16px;
-  border-radius: var(--app-radius);
-  border: 1px solid var(--app-border);
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
   overflow: hidden;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.04);
 }
 
 .item-card:hover {
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
-  transform: translateY(-4px);
-  border-color: rgba(79, 70, 229, 0.22);
+  transform: translateY(-8px) scale(1.01);
+  box-shadow: 0 25px 50px rgba(15, 23, 42, 0.14);
+  border-color: rgba(99, 102, 241, 0.25);
 }
 
-.card-header {
+.card-badge-wrapper {
+  position: absolute;
+  top: 14px;
+  left: 14px;
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
+  z-index: 20;
 }
 
-.cover-wrapper {
-  margin-bottom: 12px;
-  border-radius: var(--app-radius-sm);
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-}
-
-.cover-image {
-  width: 100%;
-  height: 190px;
-  object-fit: cover;
-  background: var(--app-gray-50);
-  display: block;
-}
-
-.item-title {
-  font-size: 18px;
-  font-weight: 800;
-  margin-bottom: 8px;
-  color: var(--app-text);
-}
-
-.item-description {
-  color: var(--app-muted);
-  font-size: 14px;
-  line-height: 1.6;
-  margin-bottom: 12px;
-}
-
-.item-info {
+.card-badge {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 10px;
+  backdrop-filter: blur(12px);
   display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.info-item {
+.type-badge {
+  background: rgba(99, 102, 241, 0.92);
+  border: none;
+  color: #fff;
+}
+
+.type-badge.el-tag--success {
+  background: rgba(16, 185, 129, 0.92);
+}
+
+.matched-badge {
+  background: rgba(16, 185, 129, 0.92);
+  border: none;
+  color: #fff;
+}
+
+.pending-badge {
+  background: rgba(245, 158, 11, 0.92);
+  border: none;
+  color: #fff;
+}
+
+.card-image-wrapper {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1.5;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  display: block;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.item-card:hover .card-image {
+  transform: scale(1.08);
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.item-card:hover .image-overlay {
+  opacity: 1;
+}
+
+.view-detail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 26px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 24px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transform: translateY(10px);
+  transition: all 0.35s ease;
+}
+
+.item-card:hover .view-detail {
+  transform: translateY(0);
+}
+
+.image-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 100%
+  );
+  transition: left 0.6s ease;
+}
+
+.item-card:hover .image-shine {
+  left: 150%;
+}
+
+.image-count {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 12px;
+  color: #fff;
   display: flex;
   align-items: center;
   gap: 4px;
-  color: var(--app-muted);
-  font-size: 13px;
 }
 
-.item-meta {
+.card-content {
+  padding: 20px;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 10px 0;
+  line-height: 1.4;
+  transition: color 0.2s ease;
+}
+
+.item-card:hover .card-title {
+  color: var(--app-primary);
+}
+
+.card-description {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.7;
+  margin: 0 0 16px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-icon {
+  color: #94a3b8;
+}
+
+.info-text {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.card-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 12px;
 }
 
-.category, .brand, .color {
-  padding: 2px 8px;
-  background: rgba(15, 23, 42, 0.04);
-  border: 1px solid var(--app-border);
-  border-radius: 999px;
+.tag {
+  padding: 4px 12px;
   font-size: 12px;
-  color: var(--app-muted);
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-.item-footer {
+.category-tag {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+  color: #6366f1;
+}
+
+.item-card:hover .category-tag {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+}
+
+.brand-tag {
+  background: rgba(15, 23, 42, 0.05);
+  color: #64748b;
+}
+
+.color-tag {
+  background: rgba(15, 23, 42, 0.05);
+  color: #64748b;
+}
+
+.card-footer {
+  padding: 14px 20px;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  background: #fafbfc;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid var(--app-border);
+  justify-content: space-between;
 }
 
-.author {
-  color: var(--app-muted);
+.author-name {
   font-size: 13px;
+  color: #94a3b8;
 }
 
+.arrow-icon {
+  color: #cbd5e1;
+  transition: all 0.3s ease;
+}
+
+.item-card:hover .arrow-icon {
+  color: var(--app-primary);
+  transform: translateX(4px);
+}
+
+.card-glow {
+  position: absolute;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 80px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.item-card:hover .card-glow {
+  opacity: 1;
+}
+
+@media (max-width: 600px) {
+  .card-image-wrapper {
+    aspect-ratio: 1.4;
+  }
+
+  .card-title {
+    font-size: 17px;
+  }
+
+  .card-content {
+    padding: 16px;
+  }
+
+  .card-footer {
+    padding: 12px 16px;
+  }
+}
 </style>

@@ -1,5 +1,6 @@
 package com.campus.lostfound.modules.system.controller;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.campus.lostfound.common.dto.request.UserUpdateRequest;
 import com.campus.lostfound.common.dto.request.VerificationRequest;
 import com.campus.lostfound.common.result.ApiResponse;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * 用户控制器
+ * 用户控制器（集成 Sa-Token）
  */
 @RestController
 @RequestMapping("/api/users")
@@ -69,5 +70,22 @@ public class UserController {
     public ApiResponse<User> updateNotificationSettings(@AuthenticationPrincipal User user,
                                                        @RequestBody Map<String, Boolean> settings) {
         return ApiResponse.success(userService.updateNotificationSettings(user.getId(), settings));
+    }
+
+    /**
+     * 用户注销
+     */
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout() {
+        StpUtil.logout();
+        return ApiResponse.success("注销成功", null);
+    }
+
+    /**
+     * 检查登录状态
+     */
+    @GetMapping("/is-login")
+    public ApiResponse<Boolean> isLogin() {
+        return ApiResponse.success(StpUtil.isLogin());
     }
 }

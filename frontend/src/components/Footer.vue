@@ -43,10 +43,12 @@ const currentYear = new Date().getFullYear()
 
 <style scoped>
 .footer {
-  background-color: var(--app-footer-bg);
-  color: var(--app-footer-text);
+  background: #1e293b !important;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
+  color: #ffffff;
   padding: 40px 0;
   margin-top: 40px;
+  min-height: 260px;
 }
 
 .footer-content {
@@ -67,17 +69,19 @@ const currentYear = new Date().getFullYear()
 .footer-section h3 {
   font-size: 18px;
   margin-bottom: 16px;
-  color: var(--app-footer-text);
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .footer-section h4 {
   font-size: 16px;
   margin-bottom: 12px;
-  color: var(--app-footer-text);
+  color: #f1f5f9;
+  font-weight: 600;
 }
 
 .footer-section p {
-  color: var(--app-footer-muted);
+  color: #cbd5e1;
   margin-bottom: 8px;
   font-size: 14px;
 }
@@ -92,24 +96,24 @@ const currentYear = new Date().getFullYear()
 }
 
 .footer-section a {
-  color: var(--app-footer-muted);
+  color: #cbd5e1;
   text-decoration: none;
   font-size: 14px;
 }
 
 .footer-section a:hover {
-  color: var(--app-footer-text);
+  color: #ffffff;
 }
 
 .footer-bottom {
   text-align: center;
   padding-top: 20px;
   margin-top: 20px;
-  border-top: 1px solid var(--app-footer-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .footer-bottom p {
-  color: var(--app-footer-muted);
+  color: #94a3b8;
   font-size: 13px;
 }
 </style>

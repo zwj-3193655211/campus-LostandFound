@@ -25,4 +25,9 @@ public class PublicStatisticsController {
     public ApiResponse<Map<String, Object>> getOverview() {
         return ApiResponse.success(statisticsService.getPublicOverview());
     }
+
+    @GetMapping("/categories")
+    public ApiResponse<Map<String, Long>> getCategories() {
+        return ApiResponse.success(statisticsService.getPopularCategories());
+    }
 }

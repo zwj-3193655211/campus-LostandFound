@@ -1,31 +1,44 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableDelayedExpansion
+
+title Campus Frontend
 chcp 65001 >nul 2>&1
 
-set "BASE_DIR=%~dp0"
-set "FRONTEND_DIR=%BASE_DIR%frontend"
-set "NPM_EXE="
+set "SCRIPT_DIR=%~dp0"
+set "FRONTEND_DIR=%SCRIPT_DIR%frontend"
 
-for %%I in (npm.cmd) do if not "%%~$PATH:I"=="" set "NPM_EXE=%%~$PATH:I"
+echo ============================================
+echo   Starting Campus Frontend
+echo ============================================
+echo.
 
-if not defined NPM_EXE (
-    echo [ERROR] npm not found. Please install Node.js 16+
+echo [INFO] Script directory: %SCRIPT_DIR%
+echo [INFO] Frontend directory: %FRONTEND_DIR%
+echo.
+
+if not exist "%FRONTEND_DIR%\package.json" (
+    echo [ERROR] package.json not found in frontend directory
     pause
     exit /b 1
 )
 
-pushd "%FRONTEND_DIR%"
-if not exist "%FRONTEND_DIR%\node_modules" (
-    echo [INFO] First run detected. Installing frontend dependencies...
-    call "%NPM_EXE%" install
-    if errorlevel 1 (
-        popd
-        echo [ERROR] Frontend dependency installation failed
-        pause
-        exit /b 1
-    )
+echo [INFO] Installing dependencies...
+call npm install --prefix "%FRONTEND_DIR%"
+if errorlevel 1 (
+    echo [ERROR] npm install failed
+    pause
+    exit /b 1
 )
 
-echo [INFO] Starting frontend dev server: http://localhost:3000
-call "%NPM_EXE%" run dev -- --host 0.0.0.0
-popd
+echo.
+echo [INFO] Starting Vite dev server...
+echo.
+
+npm run dev --prefix "%FRONTEND_DIR%"
+
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Frontend startup failed
+    pause
+    exit /b 1
+)

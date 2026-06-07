@@ -20,13 +20,14 @@ spring:
     username: test@example.com
     password: test-password
 
-jwt:
-  secret: test-secret-key-for-ci-only-please-change-before-production-1234567890
-  access-token-expiration: 900000
-  refresh-token-expiration: 604800000
 
 app:
   base-url: http://localhost:8081
   init-demo-data: false
-  auto-fix-schema: false
-  db-fix-enabled: true
+
+sa-token:
+  token-name: Authorization
+  timeout: 900
+  is-concurrent: true
+  token-prefix: Bearer
+  jwt-secret-key: test-sa-token-jwt-secret-32bytes-min-required-for-hs256-algorithm

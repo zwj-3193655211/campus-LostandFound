@@ -3,7 +3,6 @@ package com.campus.lostfound.modules.system.service;
 import com.campus.lostfound.common.dto.request.LoginRequest;
 import com.campus.lostfound.common.dto.request.RegisterRequest;
 import com.campus.lostfound.common.exception.BusinessException;
-import com.campus.lostfound.common.util.JwtUtils;
 import com.campus.lostfound.modules.system.entity.User;
 import com.campus.lostfound.modules.system.repository.UserRepository;
 import com.campus.lostfound.modules.system.service.impl.AuthServiceImpl;
@@ -13,10 +12,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -26,14 +25,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * 认证服务单元测试(纯 Sa-Token,不再 mock JwtUtils)
+ * 完整登录链路(Web 层 + JWT 签发)由 SaTokenSecurityIntegrationTest 覆盖。
+ */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AuthServiceTest {
 
     @Mock
     private UserRepository userRepository;
 
     @Mock
-    private JwtUtils jwtUtils;
+    private EmailVerificationService emailVerificationService;
 
     private AuthService authService;
     private PasswordEncoder passwordEncoder;
@@ -41,7 +45,8 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         passwordEncoder = new BCryptPasswordEncoder();
-        authService = new AuthServiceImpl(userRepository, passwordEncoder, jwtUtils);
+        when(emailVerificationService.isRegisterVerificationRequired()).thenReturn(false);
+        authService = new AuthServiceImpl(userRepository, passwordEncoder, emailVerificationService);
     }
 
     @Test
@@ -64,37 +69,6 @@ class AuthServiceTest {
         assertEquals("USER", savedUser.getRole());
         assertNotNull(savedUser.getCreatedAt());
         assertNull(savedUser.getIdCard());
-    }
-
-    @Test
-    void testLogin() {
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("login-user");
-        user.setPassword(passwordEncoder.encode("test123"));
-        user.setEmail("login@test.com");
-        user.setStudentId("20240001");
-        user.setRole("USER");
-        user.setStatus(1);
-        user.setIdCard("123456789012345678");
-        user.setNotificationInApp(1);
-        user.setNotificationEmail(1);
-        user.setNotificationMatch(1);
-        user.setNotificationVerification(1);
-
-        when(userRepository.selectOne(any())).thenReturn(user);
-        when(jwtUtils.generateAccessToken(1L, "login-user", "USER")).thenReturn("access-token");
-        when(jwtUtils.generateRefreshToken(1L, "login-user")).thenReturn("refresh-token");
-
-        LoginRequest request = new LoginRequest();
-        request.setUsername("login-user");
-        request.setPassword("test123");
-        Map<String, Object> tokens = authService.login(request);
-
-        assertEquals("access-token", tokens.get("token"));
-        assertEquals("refresh-token", tokens.get("refreshToken"));
-        Map<String, Object> userMap = (Map<String, Object>) tokens.get("user");
-        assertEquals("1234**********5678", userMap.get("idCard"));
     }
 
     @Test

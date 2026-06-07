@@ -2,6 +2,7 @@ package com.campus.lostfound.modules.statistics.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campus.lostfound.common.constant.ItemConstants;
+import com.campus.lostfound.modules.common.service.RedisCacheService;
 import com.campus.lostfound.modules.item.entity.Item;
 import com.campus.lostfound.modules.item.entity.Location;
 import com.campus.lostfound.modules.item.repository.ItemRepository;
@@ -17,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -41,24 +43,40 @@ public class StatisticsServiceImpl implements StatisticsService {
             ItemConstants.Status.RETURNED
     );
 
+    // 缓存Key
+    private static final String CACHE_KEY_DASHBOARD = "dashboard";
+    private static final String CACHE_KEY_OVERVIEW = "overview";
+    private static final String CACHE_KEY_TODAY = "today";
+
     private final ItemRepository itemRepository;
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
     private final LocationRepository locationRepository;
     private final DailyStatisticsRepository statisticsRepository;
+    private final RedisCacheService cacheService;
 
     public StatisticsServiceImpl(ItemRepository itemRepository, MatchRepository matchRepository,
-                                  UserRepository userRepository, LocationRepository locationRepository,
-                                  DailyStatisticsRepository statisticsRepository) {
+                                UserRepository userRepository, LocationRepository locationRepository,
+                                DailyStatisticsRepository statisticsRepository,
+                                RedisCacheService cacheService) {
         this.itemRepository = itemRepository;
         this.matchRepository = matchRepository;
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
         this.statisticsRepository = statisticsRepository;
+        this.cacheService = cacheService;
     }
 
     @Override
     public Map<String, Object> getDashboard() {
+        // 尝试从缓存获取
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cached = (Map<String, Object>) cacheService.getStatistics(CACHE_KEY_DASHBOARD);
+        if (cached != null) {
+            log.debug("从缓存获取Dashboard数据");
+            return cached;
+        }
+
         Map<String, Object> dashboard = new LinkedHashMap<>();
 
         // 总用户数
@@ -111,21 +129,42 @@ public class StatisticsServiceImpl implements StatisticsService {
         long todayItems = itemRepository.selectCount(itemWrapper);
         dashboard.put("todayItems", todayItems);
 
+        // 缓存5分钟
+        cacheService.setStatistics(CACHE_KEY_DASHBOARD, dashboard);
         log.info("Dashboard: {}", dashboard);
         return dashboard;
     }
 
     @Override
     public Map<String, Object> getPublicOverview() {
+        // 尝试从缓存获取
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cached = (Map<String, Object>) cacheService.getStatistics(CACHE_KEY_OVERVIEW);
+        if (cached != null) {
+            log.debug("从缓存获取Overview数据");
+            return cached;
+        }
+
         Map<String, Object> overview = new LinkedHashMap<>();
         overview.put("found", countItemsByStatuses(RESOLVED_ITEM_STATUSES));
         overview.put("total", countItemsByStatuses(PUBLIC_ITEM_STATUSES));
         overview.put("matched", countConfirmedMatches());
+
+        // 缓存5分钟
+        cacheService.setStatistics(CACHE_KEY_OVERVIEW, overview);
         return overview;
     }
 
     @Override
     public Map<String, Object> getTodayStats() {
+        // 尝试从缓存获取
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cached = (Map<String, Object>) cacheService.getStatistics(CACHE_KEY_TODAY);
+        if (cached != null) {
+            log.debug("从缓存获取TodayStats数据");
+            return cached;
+        }
+
         Map<String, Object> stats = new LinkedHashMap<>();
         LocalDateTime today = LocalDate.now().atStartOfDay();
 
@@ -141,6 +180,8 @@ public class StatisticsServiceImpl implements StatisticsService {
         wrapper.eq(Item::getType, "FOUND");
         stats.put("newFound", itemRepository.selectCount(wrapper));
 
+        // 缓存1分钟（今日数据变化频繁）
+        cacheService.setStatistics(CACHE_KEY_TODAY, stats);
         return stats;
     }
 
@@ -229,11 +270,6 @@ public class StatisticsServiceImpl implements StatisticsService {
         matchWrapper.eq(Match::getStatus, "CONFIRMED");
         matchWrapper.ge(Match::getUpdatedAt, startOfDay);
         stat.setMatchCount(Math.toIntExact(matchRepository.selectCount(matchWrapper)));
-
-        LambdaQueryWrapper<Item> claimWrapper = new LambdaQueryWrapper<>();
-        claimWrapper.in(Item::getStatus, RESOLVED_ITEM_STATUSES);
-        claimWrapper.ge(Item::getUpdatedAt, startOfDay);
-        stat.setClaimCount(Math.toIntExact(itemRepository.selectCount(claimWrapper)));
 
         if (stat.getId() == null) {
             statisticsRepository.insert(stat);

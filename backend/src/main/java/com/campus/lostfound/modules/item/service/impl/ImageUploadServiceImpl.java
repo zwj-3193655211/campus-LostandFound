@@ -64,6 +64,7 @@ public class ImageUploadServiceImpl implements ImageUploadService {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Map<String, Object> upload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("请选择要上传的图片");

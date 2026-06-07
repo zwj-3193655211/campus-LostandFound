@@ -12,8 +12,6 @@ import com.campus.lostfound.modules.item.entity.ItemCompletionRequest;
 import com.campus.lostfound.modules.item.service.ItemCompletionRequestService;
 import com.campus.lostfound.modules.item.service.ItemService;
 import com.campus.lostfound.modules.system.entity.User;
-import com.campus.lostfound.modules.verification.entity.Verification;
-import com.campus.lostfound.modules.verification.service.VerificationService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,14 +30,11 @@ public class ItemController {
     private static final Logger log = LoggerFactory.getLogger(ItemController.class);
 
     private final ItemService itemService;
-    private final VerificationService verificationService;
     private final ItemCompletionRequestService completionRequestService;
 
     public ItemController(ItemService itemService,
-                          VerificationService verificationService,
                           ItemCompletionRequestService completionRequestService) {
         this.itemService = itemService;
-        this.verificationService = verificationService;
         this.completionRequestService = completionRequestService;
     }
 
@@ -131,13 +126,6 @@ public class ItemController {
         return ApiResponse.success(itemService.query(queryRequest));
     }
 
-    @PostMapping("/{id}/claim")
-    public ApiResponse<Verification> claim(@PathVariable Long id,
-                                           @RequestParam(value = "proof", required = false) String proof,
-                                           @AuthenticationPrincipal User user) {
-        return ApiResponse.success(verificationService.claim(id, user.getId(), proof));
-    }
-
     @PostMapping("/{id}/completion-request")
     public ApiResponse<ItemCompletionRequest> submitCompletionRequest(@PathVariable Long id,
                                                                       @Valid @RequestBody ItemCompletionRequestCreateRequest request,
@@ -188,10 +176,8 @@ public class ItemController {
     }
 
     private boolean canViewSensitive(Item item, User currentUser) {
-        return currentUser != null
-                && (currentUser.getId().equals(item.getUserId())
-                || "SUPER_ADMIN".equals(currentUser.getRole())
-                || "CAMPUS_ADMIN".equals(currentUser.getRole()));
+        // 所有登录用户都可以查看联系方式，这样用户之间才能相互联系
+        return currentUser != null;
     }
 
     private boolean isAdmin(User currentUser) {

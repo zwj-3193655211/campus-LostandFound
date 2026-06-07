@@ -25,6 +25,13 @@ public class RegisterRequest {
 
     private String phone;
 
+    /**
+     * 邮箱验证码(当 app.auth.email-verification-required=true 时必填)。
+     * 由 POST /api/auth/send-register-code 发送到目标邮箱。
+     * 格式与有效期校验由 {@code EmailVerificationServiceImpl} 在调用时完成。
+     */
+    private String code;
+
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
     public String getPassword() { return password; }
@@ -35,4 +42,6 @@ public class RegisterRequest {
     public void setStudentId(String studentId) { this.studentId = studentId; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getCode() { return code; }
+    public void setCode(String code) { this.code = code; }
 }

@@ -22,8 +22,6 @@ public class DailyStatistics {
 
     private Integer matchCount;
 
-    private Integer claimCount;
-
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
@@ -68,14 +66,6 @@ public class DailyStatistics {
 
     public void setMatchCount(Integer matchCount) {
         this.matchCount = matchCount;
-    }
-
-    public Integer getClaimCount() {
-        return claimCount;
-    }
-
-    public void setClaimCount(Integer claimCount) {
-        this.claimCount = claimCount;
     }
 
     public LocalDateTime getCreatedAt() {

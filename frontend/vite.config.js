@@ -38,7 +38,8 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8081',
+        // 默认 18090: 避开 Windows Hyper-V/WSL 端口保留区 9045-9144 (含 9090)
+        target: process.env.VITE_API_TARGET || 'http://127.0.0.1:18090',
         changeOrigin: true
       }
     }

@@ -33,12 +33,14 @@ npm-debug.log*
 .env.*.local
 
 # Configuration with sensitive data
+# application.yml 含真实凭据(本地用),绝不能提交
+# application.yml.example 是模板(提交到 GitHub,别人复制成本地 application.yml)
 backend/src/main/resources/application.yml
 backend/src/main/resources/application-prod.yml
 backend/src/main/resources/application-dev.yml
 
-# Example configuration (safe to commit)
-!backend/src/main/resources/application-example.yml
+# 模板文件(安全可提交)
+!backend/src/main/resources/application.yml.example
 
 # Build
 *.tgz

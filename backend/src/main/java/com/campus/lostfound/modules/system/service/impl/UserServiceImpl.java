@@ -420,4 +420,27 @@ public class UserServiceImpl implements UserService {
         user.setIdCard(DataMaskUtils.maskIdCard(user.getIdCard()));
         return user;
     }
+
+    /**
+     * 邮箱归一化:trim + 小写。空值返回 "" 表示无效。
+     */
+    private String normalizeEmail(String email) {
+        if (email == null) return "";
+        return email.trim().toLowerCase();
+    }
+
+    /**
+     * 检查邮箱是否已被其他用户占用(忽略大小写,排除已逻辑删除用户与当前用户)。
+     * 与 {@link #normalizeEmail} 配合使用,避免 Test@x.com / test@x.com 被视作不同邮箱。
+     */
+    private void ensureEmailAvailable(String normalizedEmail, Long excludeUserId) {
+        QueryWrapper<User> wrapper = new QueryWrapper<>();
+        wrapper.apply("LOWER(email) = {0}", normalizedEmail);
+        wrapper.eq("deleted", 0);
+        wrapper.ne("id", excludeUserId);
+        Long count = userRepository.selectCount(wrapper);
+        if (count != null && count > 0) {
+            throw new BusinessException("邮箱已被其他用户使用");
+        }
+    }
 }

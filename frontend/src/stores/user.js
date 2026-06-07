@@ -18,7 +18,8 @@ const loadStoredUser = () => {
 export const useUserStore = defineStore('user', {
   state: () => ({
     user: loadStoredUser(),
-    token: localStorage.getItem('token') || null
+    token: localStorage.getItem('token') || null,
+    refreshToken: localStorage.getItem('refreshToken') || null
   }),
 
   getters: {
@@ -37,6 +38,12 @@ export const useUserStore = defineStore('user', {
         localStorage.removeItem('token')
       }
 
+      if (this.refreshToken) {
+        localStorage.setItem('refreshToken', this.refreshToken)
+      } else {
+        localStorage.removeItem('refreshToken')
+      }
+
       if (this.user) {
         localStorage.setItem('user', JSON.stringify(this.user))
       } else {
@@ -46,6 +53,7 @@ export const useUserStore = defineStore('user', {
 
     setAuth(data) {
       this.token = data?.token || data?.accessToken || null
+      this.refreshToken = data?.refreshToken || null
       this.user = data?.user || null
       this.persistAuth()
     },
@@ -57,6 +65,7 @@ export const useUserStore = defineStore('user', {
 
     clearAuth() {
       this.token = null
+      this.refreshToken = null
       this.user = null
       this.persistAuth()
     },
@@ -73,6 +82,14 @@ export const useUserStore = defineStore('user', {
 
     async register(data) {
       return await axios.post('/auth/register', data)
+    },
+
+    /**
+     * 发送注册验证码到目标邮箱。
+     * 后端 60 秒冷却:data=true 真正发送,data=false 冷却中。
+     */
+    async sendRegisterCode(email) {
+      return await axios.post('/auth/send-register-code', { email })
     },
 
     async logout() {

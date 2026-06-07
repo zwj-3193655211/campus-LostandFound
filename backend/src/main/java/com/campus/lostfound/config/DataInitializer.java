@@ -1,9 +1,12 @@
 package com.campus.lostfound.config;
 
+import com.campus.lostfound.common.constant.ItemConstants;
+import com.campus.lostfound.modules.common.service.RedisCacheService;
 import com.campus.lostfound.modules.item.entity.Item;
 import com.campus.lostfound.modules.item.entity.Location;
 import com.campus.lostfound.modules.item.repository.ItemRepository;
 import com.campus.lostfound.modules.item.repository.LocationRepository;
+import com.campus.lostfound.modules.match.service.MatchingService;
 import com.campus.lostfound.modules.system.entity.User;
 import com.campus.lostfound.modules.system.repository.UserRepository;
 import org.slf4j.Logger;
@@ -26,15 +29,21 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MatchingService matchingService;
+    private final RedisCacheService cacheService;
     private final boolean enabled;
 
     public DataInitializer(LocationRepository locationRepository, UserRepository userRepository, 
                           ItemRepository itemRepository, PasswordEncoder passwordEncoder,
+                          MatchingService matchingService,
+                          RedisCacheService cacheService,
                           @Value("${app.init-demo-data:false}") boolean enabled) {
         this.locationRepository = locationRepository;
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
         this.passwordEncoder = passwordEncoder;
+        this.matchingService = matchingService;
+        this.cacheService = cacheService;
         this.enabled = enabled;
     }
 
@@ -42,16 +51,46 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         if (!enabled) {
             log.info("Demo data initialization skipped. Use docs/sql/complete_init.sql as the baseline dataset.");
-            return;
+        } else {
+            log.info("Starting data initialization...");
+            initLocations();
+            initUsers();
+            initItems();
+            log.info("Data initialization completed.");
         }
-
-        log.info("Starting data initialization...");
         
-        initLocations();
-        initUsers();
-        initItems();
-        
-        log.info("Data initialization completed.");
+        // 总是执行匹配（无论是否初始化演示数据）
+        triggerMatching();
+    }
+    
+    private void triggerMatching() {
+        try {
+            log.info("Triggering automatic matching for initialized items...");
+            // 获取所有已审核通过的物品
+            List<Item> approvedItems = itemRepository.selectList(null).stream()
+                    .filter(item -> ItemConstants.Status.APPROVED.equals(item.getStatus()))
+                    .toList();
+            
+            log.info("Found {} approved items for matching", approvedItems.size());
+            
+            // 对每个已审核物品触发匹配
+            for (Item item : approvedItems) {
+                try {
+                    matchingService.match(item.getId());
+                    log.info("Matching triggered for item: {}", item.getTitle());
+                } catch (Exception e) {
+                    log.error("Failed to trigger matching for item {}: {}", item.getId(), e.getMessage());
+                }
+            }
+            
+            // 匹配完成后清除统计缓存
+            cacheService.clearStatisticsCache();
+            log.info("Statistics cache cleared after matching");
+            
+            log.info("Automatic matching completed");
+        } catch (Exception e) {
+            log.error("Error during automatic matching: {}", e.getMessage());
+        }
     }
 
     private void initLocations() {

@@ -1,9 +1,8 @@
 package com.campus.lostfound.security;
 
-import com.campus.lostfound.common.util.JwtUtils;
+import cn.dev33.satoken.stp.StpUtil;
 import com.campus.lostfound.modules.system.entity.User;
 import com.campus.lostfound.modules.system.repository.UserRepository;
-import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,21 +18,29 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
 
 /**
- * JWT认证过滤器
+ * Sa-Token → Spring Security 桥接过滤器
+ *
+ * 流程:
+ *   1. 从 Authorization 头拿 Sa-Token token
+ *   2. 调 StpUtil 检查登录态
+ *   3. 从 DB 查 user(实时,角色/禁用立即生效)
+ *   4. 把 user + ROLE_xxx 塞进 SecurityContext
+ *   5. 后续 .hasAnyRole("ADMIN") 等 URL 权限校验才能正常工作
+ *
+ * 注意:这里用 UserRepository(直接查表)而不是 UserService,避免 UserService ->
+ * PasswordEncoder -> WebSecurityConfig -> 本 filter 的循环依赖。
  */
 @Component
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
+public class SaTokenAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+    private static final Logger log = LoggerFactory.getLogger(SaTokenAuthenticationFilter.class);
 
-    private final JwtUtils jwtUtils;
     private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtUtils jwtUtils, UserRepository userRepository) {
-        this.jwtUtils = jwtUtils;
+    public SaTokenAuthenticationFilter(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
@@ -42,29 +49,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String token = getTokenFromRequest(request);
-
-        if (StringUtils.hasText(token) && jwtUtils.validateToken(token) && jwtUtils.isAccessToken(token)) {
+        if (StringUtils.hasText(token) && StpUtil.isLogin()) {
             try {
-                Claims claims = jwtUtils.parseToken(token);
-                String username = claims.getSubject();
+                Object loginId = StpUtil.getLoginId();
+                if (loginId != null) {
+                    User user = userRepository.selectById(Long.valueOf(loginId.toString()));
+                    if (user != null && Integer.valueOf(1).equals(user.getStatus())) {
+                        String role = user.getRole();
+                        List<SimpleGrantedAuthority> authorities = role != null
+                                ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                                : List.of();
 
-                if (StringUtils.hasText(username)) {
-                    Long userId = claims.get("userId", Long.class);
-                    User user = userRepository.selectById(userId);
-                    if (user != null && user.getStatus() != null && user.getStatus() == 1) {
                         UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(
-                                        user,
-                                        null,
-                                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole()))
-                                );
+                                new UsernamePasswordAuthenticationToken(user, null, authorities);
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authentication);
-                        log.debug("用户 {} 认证成功", username);
+                        log.debug("用户 {} 认证成功 (Sa-Token)", user.getUsername());
                     }
                 }
             } catch (Exception e) {
-                log.error("JWT解析失败: {}", e.getMessage());
+                log.error("Sa-Token 解析失败: {}", e.getMessage());
+                SecurityContextHolder.clearContext();
             }
         }
 

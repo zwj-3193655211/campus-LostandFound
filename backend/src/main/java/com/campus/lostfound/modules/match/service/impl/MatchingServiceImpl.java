@@ -184,23 +184,54 @@ public class MatchingServiceImpl implements MatchingService {
             return;
         }
 
+        LocalDateTime now = LocalDateTime.now();
         Match match = new Match();
         match.setLostItemId(lostItemId);
         match.setFoundItemId(foundItemId);
         match.setScore(score);
         match.setMatchType(matchType);
-        match.setStatus("PENDING");
+        // 串号精确匹配直接确认，其他匹配需要用户确认
+        match.setStatus("SERIAL_EXACT".equals(matchType) ? "CONFIRMED" : "PENDING");
         match.setIsRead(0);
-        match.setCreatedAt(LocalDateTime.now());
+        match.setCreatedAt(now);
+        match.setUpdatedAt(now);
 
         matchRepository.insert(match);
-        log.info("创建匹配: lost={}, found={}, score={}, type={}", lostItemId, foundItemId, score, matchType);
+        log.info("创建匹配: lost={}, found={}, score={}, type={}, status={}", lostItemId, foundItemId, score, matchType, match.getStatus());
+
+        // 对于精确匹配，同时更新物品的匹配状态
+        if ("SERIAL_EXACT".equals(matchType)) {
+            updateItemMatchStatus(lostItemId, foundItemId, score);
+        }
 
         try {
             notificationService.notifyMatchFound(lostItemId, match.getId());
             notificationService.notifyMatchFound(foundItemId, match.getId());
         } catch (Exception e) {
             log.error("发送匹配通知失败", e);
+        }
+    }
+
+    private void updateItemMatchStatus(Long lostItemId, Long foundItemId, BigDecimal score) {
+        try {
+            Item lostItem = itemRepository.selectById(lostItemId);
+            Item foundItem = itemRepository.selectById(foundItemId);
+            
+            if (lostItem != null) {
+                lostItem.setMatchItemId(foundItemId);
+                lostItem.setMatchScore(score);
+                lostItem.setUpdatedAt(LocalDateTime.now());
+                itemRepository.updateById(lostItem);
+            }
+            if (foundItem != null) {
+                foundItem.setMatchItemId(lostItemId);
+                foundItem.setMatchScore(score);
+                foundItem.setUpdatedAt(LocalDateTime.now());
+                itemRepository.updateById(foundItem);
+            }
+            log.info("更新物品匹配状态: lost={}, found={}", lostItemId, foundItemId);
+        } catch (Exception e) {
+            log.error("更新物品匹配状态失败", e);
         }
     }
 

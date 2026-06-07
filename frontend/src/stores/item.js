@@ -94,11 +94,7 @@ export const useItemStore = defineStore('item', {
       return pageData
     },
 
-    async claimItem(itemId, proof = '') {
-      return await axios.post(`/items/${itemId}/claim`, null, {
-        params: { proof: proof || undefined }
-      })
-    },
+
 
     async submitCompletionRequest(itemId, data) {
       return await axios.post(`/items/${itemId}/completion-request`, data)
@@ -122,6 +118,10 @@ export const useItemStore = defineStore('item', {
       return await axios.get('/statistics/overview')
     },
 
+    async fetchPublicCategories() {
+      return await axios.get('/statistics/categories')
+    },
+
     async fetchTodayStats() {
       return await axios.get('/admin/statistics/today')
     },
@@ -138,10 +138,17 @@ export const useItemStore = defineStore('item', {
       return await axios.get('/admin/items/pending')
     },
 
-    async verifyItem(itemId, approved) {
-      const action = approved ? 'approve' : 'reject'
-      const config = approved ? undefined : { params: { reason: '管理员审核未通过' } }
-      return await axios.put(`/admin/items/${itemId}/${action}`, null, config)
+    /**
+     * 管理员审核物品。后端实现是 PUT /api/admin/items/{id}/review。
+     * @param {number} itemId
+     * @param {boolean} approved
+     * @param {string} [reason] 拒绝原因,仅当 approved=false 时使用
+     */
+    async verifyItem(itemId, approved, reason = '') {
+      return axios.put(`/admin/items/${itemId}/review`, {
+        approved,
+        reason: approved ? undefined : (reason || '管理员审核未通过')
+      })
     },
 
     async fetchCompletionRequests() {

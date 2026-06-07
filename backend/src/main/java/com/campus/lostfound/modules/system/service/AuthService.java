@@ -23,5 +23,5 @@ public interface AuthService {
     /**
      * 刷新Token
      */
-    String refreshToken(String refreshToken);
+    Map<String, Object> refreshToken(String refreshToken);
 }

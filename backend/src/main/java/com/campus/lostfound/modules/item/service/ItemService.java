@@ -52,4 +52,25 @@ public interface ItemService {
      * 更新物品
      */
     Item updateById(Item item);
+
+    /**
+     * 管理员审核物品。
+     * 通过:状态置为 APPROVED,触发匹配,并向发布者发通知;
+     * 拒绝:状态置为 REJECTED,带原因通知发布者。
+     * 走"按 id + status=PENDING 条件原子更新"避免并发审核竞态。
+     *
+     * @return 审核后的物品
+     */
+    Item review(Long itemId, Long adminId, boolean approved, String reason);
+
+    /**
+     * 获取待审核物品列表(管理员用,按创建时间倒序)。
+     */
+    java.util.List<Item> listPending();
+
+    /**
+     * 按状态分页查物品(管理员仪表盘/审核中心用)。
+     */
+    com.campus.lostfound.common.result.PageResponse<Item> adminListByStatus(
+            String status, int page, int pageSize);
 }

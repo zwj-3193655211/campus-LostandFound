@@ -1,7 +1,7 @@
 package com.campus.lostfound.security;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.campus.lostfound.common.result.PageResponse;
-import com.campus.lostfound.common.util.JwtUtils;
 import com.campus.lostfound.modules.system.entity.User;
 import com.campus.lostfound.modules.system.repository.UserRepository;
 import com.campus.lostfound.modules.system.service.UserService;
@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -23,16 +24,22 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * 纯 Sa-Token 鉴权集成测试 - 覆盖:
+ *  1. 有效 token 通过受保护接口
+ *  2. 禁用用户被拒
+ *  3. 数据库角色被降级后,旧 token 立即失效(实时权限)
+ *  4. 数据库角色被升级后,旧 token 立即生效
+ *  5. 无 token 401
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class JwtSecurityIntegrationTest {
+@Import(SaTokenTestConfig.class)
+class SaTokenSecurityIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private JwtUtils jwtUtils;
 
     @MockBean
     private UserRepository userRepository;
@@ -53,15 +60,16 @@ class JwtSecurityIntegrationTest {
     }
 
     @Test
-    void accessTokenShouldAllowAuthenticatedProfileAccess() throws Exception {
-        User currentUser = buildUser(1L, "USER", 1);
-        when(userRepository.selectById(1L)).thenReturn(currentUser);
-        when(userService.getById(1L)).thenReturn(currentUser);
+    void validTokenShouldAllowProfileAccess() throws Exception {
+        User user = buildUser(1L, "USER", 1);
+        when(userRepository.selectById(1L)).thenReturn(user);
+        when(userService.getById(1L)).thenReturn(user);
 
-        String accessToken = jwtUtils.generateAccessToken(1L, "student1", "USER");
+        StpUtil.login(1L);
+        String token = StpUtil.getTokenValue();
 
         mockMvc.perform(get("/api/users/profile")
-                        .header("Authorization", "Bearer " + accessToken))
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.id").value(1))
@@ -69,48 +77,61 @@ class JwtSecurityIntegrationTest {
     }
 
     @Test
-    void refreshTokenShouldNotAuthenticateProtectedEndpoint() throws Exception {
-        String refreshToken = jwtUtils.generateRefreshToken(1L, "student1");
+    void disabledUserShouldBeRejected() throws Exception {
+        User disabled = buildUser(4L, "USER", 0);
+        when(userRepository.selectById(4L)).thenReturn(disabled);
+        when(userService.getById(4L)).thenReturn(disabled);
 
+        StpUtil.login(4L);
+        String token = StpUtil.getTokenValue();
+
+        // StpInterfaceImpl 在 getRoleList 时返回 [],等价于没角色 → 403
         mockMvc.perform(get("/api/users/profile")
-                        .header("Authorization", "Bearer " + refreshToken))
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void downgradedDatabaseRoleShouldBlockAdminAccess() throws Exception {
-        User downgradedUser = buildUser(2L, "USER", 1);
-        when(userRepository.selectById(2L)).thenReturn(downgradedUser);
+        // token 签发时是 CAMPUS_ADMIN,数据库里被降级为 USER
+        User downgraded = buildUser(2L, "USER", 1);
+        when(userRepository.selectById(2L)).thenReturn(downgraded);
+        when(userService.getById(2L)).thenReturn(downgraded);
 
-        String staleAdminToken = jwtUtils.generateAccessToken(2L, "campusAdmin", "CAMPUS_ADMIN");
+        StpUtil.login(2L);
+        String staleToken = StpUtil.getTokenValue();
 
         mockMvc.perform(get("/api/admin/users")
-                        .header("Authorization", "Bearer " + staleAdminToken))
+                        .header("Authorization", "Bearer " + staleToken))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void upgradedDatabaseRoleShouldAllowAdminAccess() throws Exception {
-        User upgradedUser = buildUser(3L, "CAMPUS_ADMIN", 1);
-        when(userRepository.selectById(3L)).thenReturn(upgradedUser);
+        User upgraded = buildUser(3L, "CAMPUS_ADMIN", 1);
+        when(userRepository.selectById(3L)).thenReturn(upgraded);
+        when(userService.getById(3L)).thenReturn(upgraded);
 
-        String staleUserToken = jwtUtils.generateAccessToken(3L, "campusAdmin", "USER");
+        StpUtil.login(3L);
+        String staleToken = StpUtil.getTokenValue();
 
         mockMvc.perform(get("/api/admin/users")
-                        .header("Authorization", "Bearer " + staleUserToken))
+                        .header("Authorization", "Bearer " + staleToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
     }
 
     @Test
-    void disabledUserShouldBeRejectedEvenWithValidAccessToken() throws Exception {
-        User disabledUser = buildUser(4L, "USER", 0);
-        when(userRepository.selectById(4L)).thenReturn(disabledUser);
+    void noTokenShouldBeForbidden() throws Exception {
+        // Sa-Token 默认对未登录请求返回 403(Spring Security 401)
+        mockMvc.perform(get("/api/users/profile"))
+                .andExpect(status().isForbidden());
+    }
 
-        String accessToken = jwtUtils.generateAccessToken(4L, "disabledUser", "USER");
-
+    @Test
+    void invalidTokenShouldBeForbidden() throws Exception {
         mockMvc.perform(get("/api/users/profile")
-                        .header("Authorization", "Bearer " + accessToken))
+                        .header("Authorization", "Bearer not.a.valid.jwt"))
                 .andExpect(status().isForbidden());
     }
 

@@ -1,40 +1,62 @@
 <template>
   <div class="item-detail-page app-page">
-    <div v-if="item" class="detail-content">
+    <div v-if="item" class="detail-content animate-fade-in-up">
       <div class="detail-header">
         <div class="tags">
-          <el-tag :type="getTypeColor(item.type)" size="large">
+          <el-tag :type="getTypeColor(item.type)" size="large" class="tag-item">
+            <el-icon class="tag-icon"><component :is="item.type === 'LOST' ? Help : Box" /></el-icon>
             {{ item.type === 'LOST' ? '寻物启示' : '失物招领' }}
           </el-tag>
-          <el-tag v-if="item.highConfidenceMatched" type="danger">
+          <el-tag v-if="item.highConfidenceMatched" type="danger" class="tag-item">
+            <el-icon class="tag-icon"><Trophy /></el-icon>
             已匹配
           </el-tag>
-          <el-tag v-if="item.pendingCompletionStatus === 'PENDING'" type="warning">
+          <el-tag v-if="item.pendingCompletionStatus === 'PENDING'" type="warning" class="tag-item">
+            <el-icon class="tag-icon"><Clock /></el-icon>
             {{ item.pendingCompletionTargetStatus === 'FOUND_BACK' ? '已找到审核中' : '已归还审核中' }}
           </el-tag>
-          <el-tag v-if="item.potentialOwnerNotified" type="success">
+          <el-tag v-if="item.potentialOwnerNotified" type="success" class="tag-item">
+            <el-icon class="tag-icon"><Bell /></el-icon>
             疑似失主已通知
           </el-tag>
-          <el-tag :type="getStatusColor(item.status)">
+          <el-tag :type="getStatusColor(item.status)" class="tag-item">
+            <el-icon class="tag-icon"><component :is="getStatusIcon(item.status)" /></el-icon>
             {{ formatStatus(item.status) }}
           </el-tag>
         </div>
         <h1 class="item-title">{{ item.title }}</h1>
+        <p class="item-meta">
+          <span class="meta-item">发布于 {{ formatDate(item.createdAt) }}</span>
+          <span class="meta-divider">|</span>
+          <span class="meta-item">{{ item.category }}</span>
+        </p>
       </div>
 
-      <div class="item-images">
-        <el-image 
-          v-for="(img, index) in displayImages" 
-          :key="index"
-          :src="img" 
-          :preview-src-list="displayImages"
-          class="item-image"
-        />
+      <div class="item-images-wrapper">
+        <div class="item-images">
+          <el-image 
+            v-for="(img, index) in displayImages" 
+            :key="index"
+            :src="img" 
+            :preview-src-list="displayImages"
+            class="item-image"
+            :style="{ animationDelay: `${index * 0.1}s` }"
+          />
+        </div>
+        <div v-if="item.images?.length" class="image-count">
+          <el-icon><Picture /></el-icon>
+          <span>{{ item.images.length }} 张图片</span>
+        </div>
       </div>
 
       <div class="detail-info app-grid-2">
-        <div class="info-card app-surface app-panel">
-          <div class="info-card-title">物品信息</div>
+        <div class="info-card app-surface app-panel animate-slide-up" style="animation-delay: 0.1s">
+          <div class="info-card-header">
+            <div class="info-card-icon info-icon-item">
+              <el-icon><Briefcase /></el-icon>
+            </div>
+            <div class="info-card-title">物品信息</div>
+          </div>
           <div class="info-row">
             <span class="info-label">类别</span>
             <span class="info-value">{{ item.category }}</span>
@@ -53,8 +75,13 @@
           </div>
         </div>
 
-        <div class="info-card app-surface app-panel">
-          <div class="info-card-title">地点信息</div>
+        <div class="info-card app-surface app-panel animate-slide-up" style="animation-delay: 0.2s">
+          <div class="info-card-header">
+            <div class="info-card-icon info-icon-location">
+              <el-icon><Location /></el-icon>
+            </div>
+            <div class="info-card-title">地点信息</div>
+          </div>
           <div class="info-row">
             <span class="info-label">位置</span>
             <span class="info-value">{{ item.location || '未填写' }}</span>
@@ -65,20 +92,35 @@
           </div>
         </div>
 
-        <div class="info-card app-surface app-panel">
-          <div class="info-card-title">物品描述</div>
+        <div class="info-card app-surface app-panel animate-slide-up" style="animation-delay: 0.3s">
+          <div class="info-card-header">
+            <div class="info-card-icon info-icon-desc">
+              <el-icon><Document /></el-icon>
+            </div>
+            <div class="info-card-title">物品描述</div>
+          </div>
           <p class="description-text">{{ item.description }}</p>
         </div>
 
-        <div v-if="item.potentialOwnerNotified" class="info-card app-surface app-panel">
-          <div class="info-card-title">证件匹配提醒</div>
+        <div v-if="item.potentialOwnerNotified" class="info-card app-surface app-panel animate-slide-up" style="animation-delay: 0.4s">
+          <div class="info-card-header">
+            <div class="info-card-icon info-icon-notify">
+              <el-icon><Bell /></el-icon>
+            </div>
+            <div class="info-card-title">证件匹配提醒</div>
+          </div>
           <p class="description-text">
             系统已根据证件号向疑似失主发出核对通知。请耐心等待对方确认，或由校园管理员协助完成后续联系与归还。
           </p>
         </div>
 
-        <div class="info-card app-surface app-panel">
-          <div class="info-card-title">联系方式</div>
+        <div class="info-card app-surface app-panel animate-slide-up" style="animation-delay: 0.5s">
+          <div class="info-card-header">
+            <div class="info-card-icon info-icon-contact">
+              <el-icon><Phone /></el-icon>
+            </div>
+            <div class="info-card-title">联系方式</div>
+          </div>
           <div class="info-row">
             <span class="info-label">联系人</span>
             <span class="info-value">{{ item.contactInfo || '未公开' }}</span>
@@ -87,41 +129,43 @@
       </div>
 
       <div class="detail-actions">
-        <el-button 
-          v-if="item.status === 'APPROVED' && canClaim" 
-          @click="handleClaim" 
-          type="primary" 
-          size="large"
-        >
-          <el-icon><Message /></el-icon>
-          {{ item.type === 'LOST' ? '提交认领申请' : '提交认领申请' }}
-        </el-button>
+
         <el-button
           v-if="canSubmitCompletion"
           @click="handleCompletionRequest"
           type="success"
           size="large"
+          class="action-btn action-btn-success"
         >
           <el-icon><CircleCheck /></el-icon>
           {{ item.type === 'LOST' ? '申请标记为已找到' : '申请标记为已归还' }}
         </el-button>
-        <el-button @click="goBack" type="default" size="large">
+        <el-button @click="goBack" type="default" size="large" class="action-btn action-btn-default">
           <el-icon><ArrowLeft /></el-icon>
           返回列表
         </el-button>
       </div>
 
       <div class="related-section">
-        <h3>可能相关的{{ item.type === 'LOST' ? '招领' : '寻物' }}信息</h3>
+        <div class="section-header">
+          <div class="section-title-wrapper">
+            <el-icon :size="24" class="section-icon"><Ticket /></el-icon>
+            <h3>可能相关的{{ item.type === 'LOST' ? '招领' : '寻物' }}信息</h3>
+          </div>
+        </div>
         <div class="related-items">
-          <ItemCard 
-            v-for="related in relatedItems" 
+          <div 
+            v-for="(related, index) in relatedItems" 
             :key="related.id" 
-            :item="related" 
-          />
+            class="related-item-wrapper"
+            :style="{ animationDelay: `${index * 0.15}s` }"
+          >
+            <ItemCard :item="related" />
+          </div>
         </div>
         <div v-if="relatedItems.length === 0" class="empty-related">
-          暂无相关信息
+          <el-icon :size="48" class="empty-icon"><Search /></el-icon>
+          <p>暂无相关信息</p>
         </div>
       </div>
     </div>
@@ -134,9 +178,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Message, ArrowLeft, CircleCheck, Loading } from '@element-plus/icons-vue'
+import { Message, ArrowLeft, CircleCheck, Loading, Help, Box, Trophy, Clock, Bell, Picture, Briefcase, Location, Document, Phone, Ticket, Search, View, Warning } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { useItemStore } from '../stores/item'
 import { useUserStore } from '../stores/user'
@@ -158,13 +202,6 @@ const displayImages = computed(() => {
   return [buildPlaceholderImage(item.value)]
 })
 
-const canClaim = computed(() => {
-  return !!item.value
-    && !!userStore.user
-    && userStore.user.id !== item.value.userId
-    && item.value.status === 'APPROVED'
-})
-
 const canSubmitCompletion = computed(() => {
   return !!item.value
     && !!userStore.user
@@ -174,26 +211,16 @@ const canSubmitCompletion = computed(() => {
     && item.value.pendingCompletionStatus !== 'PENDING'
 })
 
-const handleClaim = async () => {
-  try {
-    const { value } = await ElMessageBox.prompt(
-      '请简要填写能证明物品归属的信息，提交后由审核员处理。',
-      '提交认领申请',
-      {
-        confirmButtonText: '提交',
-        cancelButtonText: '取消',
-        inputPlaceholder: '例如：物品特征、购买记录、证件信息等',
-        inputType: 'textarea'
-      }
-    )
-    await itemStore.claimItem(item.value.id, value || '')
-    showInfo('认领申请已提交，请等待审核')
-  } catch (error) {
-    if (error === 'cancel' || error === 'close') {
-      return
-    }
-    showError(error?.message || '提交认领申请失败')
+const getStatusIcon = (status) => {
+  const icons = {
+    'PENDING': Clock,
+    'APPROVED': CircleCheck,
+    'REJECTED': Warning,
+    'FOUND_BACK': CircleCheck,
+    'RETURNED': CircleCheck,
+    'EXPIRED': Warning
   }
+  return icons[status] || View
 }
 
 const handleCompletionRequest = async () => {
@@ -227,9 +254,8 @@ const goBack = () => {
   router.push('/items')
 }
 
-onMounted(async () => {
+const loadItem = async (itemId) => {
   try {
-    const itemId = parseInt(route.params.id)
     item.value = await itemStore.fetchItem(itemId)
 
     const params = {
@@ -242,6 +268,18 @@ onMounted(async () => {
     console.error('获取物品详情失败:', error)
     showError(typeof error === 'string' ? error : (error?.message || '获取物品详情失败'))
   }
+}
+
+onMounted(async () => {
+  const itemId = parseInt(route.params.id)
+  await loadItem(itemId)
+})
+
+watch(() => route.params.id, async (newId) => {
+  if (newId) {
+    const itemId = parseInt(newId)
+    await loadItem(itemId)
+  }
 })
 </script>
 
@@ -251,57 +289,182 @@ onMounted(async () => {
   max-width: var(--app-max-width-medium);
 }
 
+.detail-content {
+  opacity: 0;
+}
+
 .detail-header {
   text-align: center;
-  margin-bottom: var(--app-space-6);
+  margin-bottom: var(--app-space-8);
 }
 
 .tags {
   display: flex;
   justify-content: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.tag-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 500;
+  font-size: 13px;
+  transition: all 0.3s ease;
+}
+
+.tag-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.tag-icon {
+  font-size: 14px;
 }
 
 .item-title {
-  font-size: 32px;
+  font-size: 36px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.item-meta {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  color: var(--app-muted);
+  font-size: 14px;
   margin: 0;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.meta-divider {
+  color: #cbd5e1;
+}
+
+.item-images-wrapper {
+  position: relative;
+  margin-bottom: var(--app-space-8);
 }
 
 .item-images {
   display: flex;
-  gap: 12px;
-  margin-bottom: var(--app-space-6);
+  gap: 14px;
+  margin-bottom: var(--app-space-4);
   overflow-x: auto;
+  padding-bottom: 12px;
 }
 
 .item-image {
-  width: 200px;
-  height: 200px;
+  width: 220px;
+  height: 220px;
   object-fit: cover;
-  border-radius: var(--app-radius-sm);
+  border-radius: var(--app-radius);
   border: 1px solid var(--app-border);
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.08);
+  opacity: 0;
+  animation: fadeInUp 0.5s ease-out forwards;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.item-image:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+.image-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-muted);
+  font-size: 13px;
+  margin-left: 4px;
 }
 
 .detail-info {
-  margin-bottom: var(--app-space-6);
+  margin-bottom: var(--app-space-8);
 }
 
 .info-card {
   overflow: hidden;
+  opacity: 0;
+}
+
+.info-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--app-space-4);
+}
+
+.info-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.info-icon-item {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  color: #6366f1;
+}
+
+.info-icon-location {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #10b981;
+}
+
+.info-icon-desc {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #3b82f6;
+}
+
+.info-icon-notify {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #f59e0b;
+}
+
+.info-icon-contact {
+  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+  color: #ec4899;
 }
 
 .info-card-title {
-  font-weight: 800;
+  font-weight: 700;
+  font-size: 16px;
   letter-spacing: 0.2px;
-  margin-bottom: var(--app-space-4);
+  color: #1e293b;
+  margin: 0;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--app-border);
+  transition: background 0.2s ease;
+}
+
+.info-row:hover {
+  background: rgba(99, 102, 241, 0.02);
 }
 
 .info-row:last-child {
@@ -310,60 +473,227 @@ onMounted(async () => {
 
 .info-label {
   color: var(--app-muted);
+  font-size: 14px;
 }
 
 .info-value {
   color: var(--app-text);
   font-weight: 500;
+  font-size: 14px;
 }
 
 .description-text {
   line-height: 1.8;
   color: var(--app-muted);
   margin: 0;
+  font-size: 14px;
+  padding: 8px 0;
 }
 
 .detail-actions {
   display: flex;
   justify-content: center;
   gap: 16px;
-  margin-bottom: var(--app-space-8);
+  margin-bottom: var(--app-space-10);
   flex-wrap: wrap;
 }
 
+.action-btn {
+  padding: 14px 32px;
+  font-weight: 600;
+  font-size: 15px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.action-btn-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+}
+
+.action-btn-primary:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.45);
+}
+
+.action-btn-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);
+}
+
+.action-btn-success:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.45);
+}
+
+.action-btn-default {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--app-border);
+  color: var(--app-text);
+}
+
+.action-btn-default:hover {
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
 .related-section {
-  margin-top: var(--app-space-8);
+  margin-top: var(--app-space-10);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--app-space-5);
+}
+
+.section-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-icon {
+  color: var(--app-primary);
 }
 
 .related-section h3 {
-  font-size: 20px;
-  margin-bottom: var(--app-space-4);
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .related-items {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  gap: 20px;
+}
+
+.related-item-wrapper {
+  opacity: 0;
+  animation: fadeInUp 0.5s ease-out forwards;
 }
 
 .empty-related {
   text-align: center;
-  padding: 40px;
+  padding: 60px 20px;
+  background: rgba(15, 23, 42, 0.02);
+  border-radius: var(--app-radius);
+  border: 1px dashed var(--app-border);
+}
+
+.empty-icon {
+  color: #cbd5e1;
+  margin-bottom: 16px;
+}
+
+.empty-related p {
   color: var(--app-muted);
+  font-size: 14px;
+  margin: 0;
 }
 
 .loading-state {
   text-align: center;
-  padding: 100px;
+  padding: 120px 20px;
 }
 
 .loading-state p {
-  margin-top: 16px;
+  margin-top: 20px;
   color: var(--app-muted);
+  font-size: 15px;
 }
 
 .loading-icon {
-  font-size: 44px;
+  font-size: 56px;
   color: var(--app-primary);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (max-width: 900px) {
+  .related-items {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .item-image {
+    width: 180px;
+    height: 180px;
+  }
+}
+
+@media (max-width: 600px) {
+  .item-title {
+    font-size: 28px;
+  }
+
+  .tags {
+    gap: 8px;
+  }
+
+  .tag-item {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .item-image {
+    width: 150px;
+    height: 150px;
+  }
+
+  .related-items {
+    grid-template-columns: 1fr;
+  }
+
+  .action-btn {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+
+  .detail-info {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

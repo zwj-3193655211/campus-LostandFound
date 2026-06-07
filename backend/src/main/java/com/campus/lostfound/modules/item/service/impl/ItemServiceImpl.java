@@ -10,6 +10,7 @@ import com.campus.lostfound.common.dto.request.ItemCreateRequest;
 import com.campus.lostfound.common.dto.request.ItemQueryRequest;
 import com.campus.lostfound.common.exception.BusinessException;
 import com.campus.lostfound.common.result.PageResponse;
+import com.campus.lostfound.modules.common.service.RedisCacheService;
 import com.campus.lostfound.modules.item.entity.Item;
 import com.campus.lostfound.modules.item.entity.ItemCompletionRequest;
 import com.campus.lostfound.modules.item.entity.ItemImage;
@@ -21,6 +22,9 @@ import com.campus.lostfound.modules.match.repository.MatchRepository;
 import com.campus.lostfound.modules.notification.entity.Notification;
 import com.campus.lostfound.modules.notification.repository.NotificationRepository;
 import com.campus.lostfound.modules.item.service.ItemService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,25 +44,39 @@ import java.util.stream.Collectors;
 @Service
 public class ItemServiceImpl implements ItemService {
 
+    private static final Logger log = LoggerFactory.getLogger(ItemServiceImpl.class);
+
     private final ItemRepository itemRepository;
     private final ItemImageRepository itemImageRepository;
     private final MatchRepository matchRepository;
     private final ItemCompletionRequestRepository completionRequestRepository;
     private final NotificationRepository notificationRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final RedisCacheService cacheService;
+    private final ObjectMapper objectMapper;
+    private final com.campus.lostfound.modules.notification.service.NotificationService notificationService;
+    private final com.campus.lostfound.modules.match.service.MatchingService matchingService;
 
     public ItemServiceImpl(ItemRepository itemRepository,
                            ItemImageRepository itemImageRepository,
                            MatchRepository matchRepository,
                            ItemCompletionRequestRepository completionRequestRepository,
                            NotificationRepository notificationRepository,
-                           JdbcTemplate jdbcTemplate) {
+                           JdbcTemplate jdbcTemplate,
+                           RedisCacheService cacheService,
+                           ObjectMapper objectMapper,
+                           com.campus.lostfound.modules.notification.service.NotificationService notificationService,
+                           com.campus.lostfound.modules.match.service.MatchingService matchingService) {
         this.itemRepository = itemRepository;
         this.itemImageRepository = itemImageRepository;
         this.matchRepository = matchRepository;
         this.completionRequestRepository = completionRequestRepository;
         this.notificationRepository = notificationRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.cacheService = cacheService;
+        this.objectMapper = objectMapper;
+        this.notificationService = notificationService;
+        this.matchingService = matchingService;
     }
 
     @Override
@@ -139,6 +157,10 @@ public class ItemServiceImpl implements ItemService {
         }
 
         itemRepository.deleteById(id);
+
+        // 清除物品缓存和统计缓存
+        cacheService.clearItemCache(id);
+        cacheService.clearStatisticsCache();
     }
 
     @Override
@@ -256,6 +278,101 @@ public class ItemServiceImpl implements ItemService {
         }
         String trimmed = serialNumber.trim();
         return trimmed.isEmpty() ? null : trimmed.toUpperCase();
+    }
+
+    @Override
+    @Transactional
+    public Item review(Long itemId, Long adminId, boolean approved, String reason) {
+        Item item = itemRepository.selectById(itemId);
+        if (item == null) {
+            throw new BusinessException("物品不存在");
+        }
+        if (!ItemConstants.Status.PENDING.equals(item.getStatus())) {
+            throw new BusinessException("仅待审核物品可被审核,当前状态: " + item.getStatus());
+        }
+
+        String newStatus = approved ? ItemConstants.Status.APPROVED : ItemConstants.Status.REJECTED;
+        LocalDateTime now = LocalDateTime.now();
+
+        // 条件原子更新:避免两个管理员同时审核造成的"双通过/双拒绝"
+        com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Item> updateWrapper =
+                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<>();
+        updateWrapper.eq(Item::getId, itemId)
+                .eq(Item::getStatus, ItemConstants.Status.PENDING)
+                .set(Item::getStatus, newStatus)
+                .set(Item::getUpdatedAt, now);
+        int rows = itemRepository.update(null, updateWrapper);
+        if (rows == 0) {
+            // 并发场景:被其他管理员先一步审核了
+            throw new BusinessException("该物品已被其他管理员审核");
+        }
+
+        // 重新读一次,拿最新状态
+        Item updated = itemRepository.selectById(itemId);
+        log.info("管理员 {} 审核物品 {} -> {} (approved={})", adminId, itemId, newStatus, approved);
+
+        // 通知发布者(站内 + 邮件)
+        try {
+            notificationService.notifyVerificationResult(itemId, newStatus, reason);
+        } catch (Exception e) {
+            // 通知失败不影响主流程
+            log.error("审核通知发送失败: itemId={}, status={}", itemId, newStatus, e);
+        }
+
+        // 审核通过:异步触发匹配(不阻塞事务)
+        if (approved) {
+            try {
+                matchingService.match(itemId);
+                log.info("物品 {} 审核通过后已触发匹配", itemId);
+            } catch (Exception e) {
+                log.error("审核通过后触发匹配失败: itemId={}", itemId, e);
+            }
+        }
+
+        // 清除缓存
+        cacheService.clearItemCache(itemId);
+        cacheService.clearStatisticsCache();
+        return updated;
+    }
+
+    @Override
+    public List<Item> listPending() {
+        LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Item::getStatus, ItemConstants.Status.PENDING)
+                .orderByDesc(Item::getCreatedAt);
+        List<Item> items = itemRepository.selectList(wrapper);
+        enrichItems(items);
+        return items;
+    }
+
+    @Override
+    public com.campus.lostfound.common.result.PageResponse<Item> adminListByStatus(
+            String status, int page, int pageSize) {
+        // 列表查询(带 deleted=0 过滤)
+        LambdaQueryWrapper<Item> listWrapper = new LambdaQueryWrapper<>();
+        listWrapper.eq(Item::getDeleted, 0);
+        if (status != null && !status.isBlank()) {
+            listWrapper.eq(Item::getStatus, status);
+        }
+        listWrapper.orderByDesc(Item::getCreatedAt);
+        List<Item> records = itemRepository.selectList(listWrapper);
+
+        // 单独 count(绕开 selectPage 的 count 查询与 @TableLogic 冲突)
+        LambdaQueryWrapper<Item> countWrapper = new LambdaQueryWrapper<>();
+        countWrapper.eq(Item::getDeleted, 0);
+        if (status != null && !status.isBlank()) {
+            countWrapper.eq(Item::getStatus, status);
+        }
+        long total = itemRepository.selectCount(countWrapper);
+
+        // 内存分页
+        int fromIndex = Math.min((page - 1) * pageSize, records.size());
+        int toIndex = Math.min(fromIndex + pageSize, records.size());
+        List<Item> paged = records.subList(fromIndex, toIndex);
+        enrichItems(paged);
+
+        return com.campus.lostfound.common.result.PageResponse.of(
+                paged, total, page, pageSize);
     }
 
     private void enrichItems(List<Item> items) {

@@ -24,11 +24,6 @@ public interface NotificationService {
     void notifyVerificationResult(Long itemId, String status, String reason);
 
     /**
-     * 发送认领审核结果通知
-     */
-    void notifyClaimReviewResult(Long verificationId, String status, String reason);
-
-    /**
      * 获取用户未读通知数量
      */
     long getUnreadCount(Long userId);

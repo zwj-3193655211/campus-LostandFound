@@ -52,7 +52,7 @@
         </div>
         <div class="stat-info">
           <p class="stat-value">{{ stats.claimedItems }}</p>
-          <p class="stat-label">已认领物品</p>
+          <p class="stat-label">已完成物品</p>
         </div>
       </el-card>
 
@@ -62,7 +62,7 @@
         </div>
         <div class="stat-info">
           <p class="stat-value">{{ stats.claimRate }}%</p>
-          <p class="stat-label">认领成功率</p>
+          <p class="stat-label">完成率</p>
         </div>
       </el-card>
     </div>

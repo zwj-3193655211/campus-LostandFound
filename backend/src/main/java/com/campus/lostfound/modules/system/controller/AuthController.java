@@ -41,8 +41,9 @@ public class AuthController {
      * 刷新Token
      */
     @PostMapping("/refresh")
-    public ApiResponse<String> refresh(@RequestHeader("Refresh-Token") String refreshToken) {
-        String accessToken = authService.refreshToken(refreshToken);
-        return ApiResponse.success(accessToken);
+    public ApiResponse<java.util.Map<String, Object>> refresh(@RequestBody java.util.Map<String, String> request) {
+        String refreshToken = request.get("refreshToken");
+        java.util.Map<String, Object> result = authService.refreshToken(refreshToken);
+        return ApiResponse.success(result);
     }
 }

@@ -14,8 +14,6 @@ import com.campus.lostfound.modules.notification.service.MailService;
 import com.campus.lostfound.modules.notification.service.NotificationService;
 import com.campus.lostfound.modules.system.entity.User;
 import com.campus.lostfound.modules.system.repository.UserRepository;
-import com.campus.lostfound.modules.verification.entity.Verification;
-import com.campus.lostfound.modules.verification.repository.VerificationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -36,17 +34,15 @@ public class NotificationServiceImpl implements NotificationService {
     private final ItemRepository itemRepository;
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
-    private final VerificationRepository verificationRepository;
     private final MailService mailService;
 
     public NotificationServiceImpl(NotificationRepository notificationRepository, ItemRepository itemRepository,
                                    MatchRepository matchRepository, UserRepository userRepository,
-                                   VerificationRepository verificationRepository, MailService mailService) {
+                                   MailService mailService) {
         this.notificationRepository = notificationRepository;
         this.itemRepository = itemRepository;
         this.matchRepository = matchRepository;
         this.userRepository = userRepository;
-        this.verificationRepository = verificationRepository;
         this.mailService = mailService;
     }
 
@@ -159,41 +155,6 @@ public class NotificationServiceImpl implements NotificationService {
         }
 
         log.info("发送审核通知: itemId={}, status={}", itemId, status);
-    }
-
-    @Override
-    @Transactional
-    public void notifyClaimReviewResult(Long verificationId, String status, String reason) {
-        Verification verification = verificationRepository.selectById(verificationId);
-        if (verification == null) {
-            return;
-        }
-
-        Item item = itemRepository.selectById(verification.getItemId());
-        User claimant = userRepository.selectById(verification.getClaimantId());
-        if (item == null || claimant == null) {
-            return;
-        }
-
-        boolean approved = "APPROVED".equals(status);
-        String title = approved ? "认领申请已通过" : "认领申请未通过";
-        String content = approved
-                ? String.format("您对物品\"%s\"提交的认领申请已通过，请尽快联系对方完成认领", item.getTitle())
-                : String.format("您对物品\"%s\"提交的认领申请未通过，原因：%s", item.getTitle(), reason);
-
-        create(claimant.getId(), ItemConstants.NotificationType.CLAIM_REVIEW_RESULT, title, content, item.getId());
-
-        if (Integer.valueOf(1).equals(claimant.getNotificationVerification())
-                && claimant.getEmail() != null && !claimant.getEmail().isBlank()) {
-            mailService.sendSimpleEmail(
-                    claimant.getEmail(),
-                    title,
-                    content
-            );
-        }
-
-        log.info("发送认领审核结果通知: verificationId={}, claimantId={}, status={}",
-                verificationId, claimant.getId(), status);
     }
 
     /**
