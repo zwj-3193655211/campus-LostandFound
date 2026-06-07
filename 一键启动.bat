@@ -7,7 +7,8 @@ chcp 65001 >nul 2>&1
 set "BASE_DIR=%~dp0"
 set "BACKEND_DIR=%BASE_DIR%backend"
 set "FRONTEND_DIR=%BASE_DIR%frontend"
-set "INIT_SQL=%BASE_DIR%docs\sql\complete_init.sql"
+set "SCHEMA_SQL=%BASE_DIR%docs\sql\schema.sql"
+set "DATA_SQL=%BASE_DIR%docs\sql\data.sql"
 set "MIGRATION_SQL=%BASE_DIR%docs\sql\phase9_migration.sql"
 set "DB_HOST=%DB_HOST%"
 set "DB_PORT=%DB_PORT%"
@@ -73,35 +74,45 @@ del /q "%TEMP%\campus_db_exists.txt" >nul 2>&1
 
 if /I "!DB_EXISTS!"=="%DB_NAME%" (
     if exist "%MIGRATION_SQL%" (
-        echo   [INFO] Existing database detected. Running phase9_migration.sql
+        echo   [INFO] Existing database detected. Running migration script
         "%MYSQL_EXE%" -h %DB_HOST% -P %DB_PORT% -u %DB_USERNAME% -p"%DB_PASSWORD%" %DB_NAME% < "%MIGRATION_SQL%"
         if errorlevel 1 (
-            echo   [ERROR] phase9_migration.sql failed
+            echo   [ERROR] Migration failed
             goto :fail
         )
     ) else (
-        echo   [ERROR] Migration script not found: %MIGRATION_SQL%
-        goto :fail
+        echo   [WARN] No migration script found, assuming database is up to date
     )
 ) else (
-    if exist "%INIT_SQL%" (
-        echo   [INFO] Database not found. Running complete_init.sql
-        "%MYSQL_EXE%" -h %DB_HOST% -P %DB_PORT% -u %DB_USERNAME% -p"%DB_PASSWORD%" < "%INIT_SQL%"
+    if exist "%SCHEMA_SQL%" (
+        echo   [INFO] Database not found. Creating schema with schema.sql
+        "%MYSQL_EXE%" -h %DB_HOST% -P %DB_PORT% -u %DB_USERNAME% -p"%DB_PASSWORD%" < "%SCHEMA_SQL%"
         if errorlevel 1 (
-            echo   [ERROR] complete_init.sql failed
+            echo   [ERROR] schema.sql failed
             goto :fail
         )
     ) else (
-        echo   [ERROR] Init script not found: %INIT_SQL%
+        echo   [ERROR] Schema script not found: %SCHEMA_SQL%
         goto :fail
+    )
+    if exist "%DATA_SQL%" (
+        echo   [INFO] Loading initial data with data.sql
+        "%MYSQL_EXE%" -h %DB_HOST% -P %DB_PORT% -u %DB_USERNAME% -p"%DB_PASSWORD%" < "%DATA_SQL%"
+        if errorlevel 1 (
+            echo   [WARN] data.sql failed, continuing anyway
+        )
     )
 )
 echo   [OK] Database is ready
 echo.
 
+echo [INFO] Freeing ports 18090/3000 (kills any stale backend/frontend from prior runs)
+call :kill_stale_port 18090
+call :kill_stale_port 3000
+echo.
 echo [4/6] Building backend
 pushd "%BACKEND_DIR%"
-call "%MAVEN_EXE%" -DskipTests package
+call "%MAVEN_EXE%" -Dmaven.test.skip=true clean package
 if errorlevel 1 (
     popd
     echo   [ERROR] Backend build failed
@@ -139,8 +150,8 @@ echo.
 echo ============================================
 echo   Startup commands have been sent
 echo   Frontend: http://localhost:3000
-echo   Backend:  http://localhost:8081
-echo   Docs:     http://localhost:8081/swagger-ui.html
+echo   Backend:  http://localhost:18090
+echo   Docs:     http://localhost:18090/swagger-ui.html
 echo.
 echo   Test accounts:
 echo   - superadmin / 123456
@@ -191,4 +202,17 @@ exit /b 1
 :pause_if_needed
 if defined NO_PAUSE exit /b 0
 pause
+exit /b 0
+
+
+:kill_stale_port
+:: Usage: call :kill_stale_port <port>
+:: Kills any process LISTENING on the given TCP port. Silent if the port is free.
+set "KSP_PORT=%~1"
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":%KSP_PORT%.*LISTENING" 2^>nul') do (
+    if %%P NEQ 0 (
+        taskkill /PID %%P /F /T >nul 2>&1
+        echo   [INFO] Killed stale PID %%P on :%KSP_PORT%
+    )
+)
 exit /b 0
