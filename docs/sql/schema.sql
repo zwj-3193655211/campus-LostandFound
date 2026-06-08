@@ -17,6 +17,7 @@ CREATE TABLE `users` (
     `username` VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
     `password` VARCHAR(255) NOT NULL COMMENT '加密后的密码',
     `email` VARCHAR(100) NOT NULL COMMENT '邮箱',
+    `email_active` VARCHAR(100) GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN email ELSE NULL END) VIRTUAL COMMENT '活跃邮箱(用于唯一约束)',
     `student_id` VARCHAR(20) COMMENT '学号/工号',
     `phone` VARCHAR(20) COMMENT '手机号',
     `real_name` VARCHAR(50) COMMENT '真实姓名(实名认证)',
@@ -37,7 +38,8 @@ CREATE TABLE `users` (
     INDEX `idx_email` (`email`),
     INDEX `idx_student_id` (`student_id`),
     INDEX `idx_identity_status` (`identity_status`),
-    INDEX `idx_role` (`role`)
+    INDEX `idx_role` (`role`),
+    UNIQUE KEY `uk_users_email_active` (`email_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
 
 DROP TABLE IF EXISTS `user_identity_verifications`;
