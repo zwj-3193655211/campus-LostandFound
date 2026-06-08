@@ -52,3 +52,7 @@ spring-boot-*.jar
 *.orig
 *.rej
 *~
+
+# Temporary files
+.tmp_*
+*.tmp
