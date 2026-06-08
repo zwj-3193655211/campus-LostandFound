@@ -223,30 +223,27 @@ async function handleSendCode() {
   
   sendingCode.value = true
   try {
-    const res = await userStore.sendRegisterCode(form.email)
-    if (res?.code === 200) {
-      // data 为 'true' 表示本次成功发送，'false' 表示冷却中
-      if (res.data === 'true' || res.data === true) {
-        showSuccess(res.message || '验证码已发送,请查收邮箱')
-        sentBefore.value = true
-        startCooldown(60)
-      } else {
-        // 后端返回冷却中，也启动前端倒计时
-        showWarning(res.message || '发送过于频繁，请60秒后再试')
-        startCooldown(60)
-      }
+    // axios拦截器已提取 payload.data，所以返回值是 "true" 或 "false" 字符串
+    const result = await userStore.sendRegisterCode(form.email)
+    if (result === 'true' || result === true) {
+      // 发送成功
+      showSuccess('验证码已发送,请查收邮箱')
+      sentBefore.value = true
+      startCooldown(60)
     } else {
-      showError(res?.message || '发送失败,请稍后再试')
+      // 冷却中或其他情况
+      showWarning('发送过于频繁，请60秒后再试')
+      startCooldown(60)
     }
   } catch (error) {
     console.error('发送验证码失败:', error)
-    const errMsg = error?.response?.data?.message || error?.message || '发送失败'
+    const errMsg = error?.response?.data?.message || error?.message || error || '发送失败'
     // 如果是冷却中，显示警告而非错误
-    if (errMsg.includes('冷却') || errMsg.includes('频繁')) {
-      showWarning(errMsg)
+    if (String(errMsg).includes('冷却') || String(errMsg).includes('频繁')) {
+      showWarning(String(errMsg))
       startCooldown(60)
     } else {
-      showError(errMsg)
+      showError(String(errMsg))
     }
   } finally {
     sendingCode.value = false
