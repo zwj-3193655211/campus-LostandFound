@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -49,6 +50,19 @@ public class GlobalExceptionHandler {
                 ? e.getBindingResult().getFieldError().getDefaultMessage()
                 : "参数绑定失败";
         log.error("参数绑定异常: {}", message);
+        return ApiResponse.error(400, message);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
+        String rawMessage = e.getMostSpecificCause() != null
+                ? e.getMostSpecificCause().getMessage()
+                : e.getMessage();
+        String message = rawMessage != null && rawMessage.contains("LocalDateTime")
+                ? "时间格式不正确，请使用 yyyy-MM-dd HH:mm:ss"
+                : "请求体格式不正确";
+        log.error("请求体解析异常: {}", rawMessage);
         return ApiResponse.error(400, message);
     }
 
