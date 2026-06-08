@@ -101,19 +101,23 @@ const truncate = (text) => {
 <style scoped>
 .item-card {
   background: #fff;
-  border-radius: 20px;
+  border-radius: 22px;
   border: 1px solid rgba(15, 23, 42, 0.06);
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.04);
+  box-shadow: 
+    0 4px 24px rgba(15, 23, 42, 0.04),
+    0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
 .item-card:hover {
-  transform: translateY(-8px) scale(1.01);
-  box-shadow: 0 25px 50px rgba(15, 23, 42, 0.14);
-  border-color: rgba(99, 102, 241, 0.25);
+  transform: translateY(-10px) scale(1.015);
+  box-shadow: 
+    0 25px 50px rgba(15, 23, 42, 0.16),
+    0 8px 20px rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 .card-badge-wrapper {
@@ -126,35 +130,58 @@ const truncate = (text) => {
 }
 
 .card-badge {
-  padding: 5px 12px;
+  padding: 6px 14px;
   font-size: 12px;
   font-weight: 600;
-  border-radius: 10px;
-  backdrop-filter: blur(12px);
-  display: flex;
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* 穿透 el-tag 内层容器，确保图标和文字垂直居中 */
+.card-badge :deep(.el-tag__content) {
+  display: inline-flex;
   align-items: center;
   gap: 5px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  line-height: 1;
+}
+
+/* el-tag 内的图标垂直基线对齐 */
+.card-badge :deep(.el-icon) {
+  vertical-align: middle;
+  position: relative;
+  top: 0;
+  line-height: 1;
+}
+
+.card-badge:hover {
+  transform: scale(1.05);
 }
 
 .type-badge {
-  background: rgba(99, 102, 241, 0.92);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(139, 92, 246, 0.95) 100%);
   border: none;
   color: #fff;
 }
 
 .type-badge.el-tag--success {
-  background: rgba(16, 185, 129, 0.92);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%);
 }
 
 .matched-badge {
-  background: rgba(16, 185, 129, 0.92);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%);
   border: none;
   color: #fff;
 }
 
 .pending-badge {
-  background: rgba(245, 158, 11, 0.92);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.95) 0%, rgba(217, 119, 6, 0.95) 100%);
   border: none;
   color: #fff;
 }
@@ -308,54 +335,96 @@ const truncate = (text) => {
 }
 
 .tag {
-  padding: 4px 12px;
+  padding: 5px 14px;
   font-size: 12px;
-  border-radius: 8px;
+  border-radius: 10px;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.tag::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transition: left 0.5s ease;
+}
+
+.item-card:hover .tag::before {
+  left: 100%;
 }
 
 .category-tag {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
   color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.15);
 }
 
 .item-card:hover .category-tag {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.18) 100%);
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateY(-2px);
 }
 
 .brand-tag {
-  background: rgba(15, 23, 42, 0.05);
+  background: rgba(15, 23, 42, 0.06);
   color: #64748b;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.item-card:hover .brand-tag {
+  background: rgba(15, 23, 42, 0.1);
+  transform: translateY(-2px);
 }
 
 .color-tag {
-  background: rgba(15, 23, 42, 0.05);
+  background: rgba(15, 23, 42, 0.06);
   color: #64748b;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.item-card:hover .color-tag {
+  background: rgba(15, 23, 42, 0.1);
+  transform: translateY(-2px);
 }
 
 .card-footer {
-  padding: 14px 20px;
+  padding: 16px 20px;
   border-top: 1px solid rgba(15, 23, 42, 0.06);
-  background: #fafbfc;
+  background: linear-gradient(180deg, #fafbfc 0%, #f8fafc 100%);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  transition: all 0.3s ease;
+}
+
+.item-card:hover .card-footer {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.04) 0%, rgba(139, 92, 246, 0.04) 100%);
 }
 
 .author-name {
   font-size: 13px;
   color: #94a3b8;
+  transition: color 0.3s ease;
+}
+
+.item-card:hover .author-name {
+  color: var(--app-primary);
 }
 
 .arrow-icon {
   color: #cbd5e1;
-  transition: all 0.3s ease;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .item-card:hover .arrow-icon {
   color: var(--app-primary);
-  transform: translateX(4px);
+  transform: translateX(6px) scale(1.1);
 }
 
 .card-glow {

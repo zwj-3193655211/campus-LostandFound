@@ -66,16 +66,36 @@
       <el-tab-pane label="通知设置">
         <el-form :model="notificationSettings" class="profile-form">
           <el-form-item label="站内通知">
-            <el-switch v-model="notificationSettings.inApp" />
+            <el-switch
+              v-model="notificationSettings.inApp"
+              active-text="开启"
+              inactive-text="关闭"
+              style="--el-switch-on-color: #6366f1; --el-switch-off-color: #d1d5db;"
+            />
           </el-form-item>
           <el-form-item label="邮件通知">
-            <el-switch v-model="notificationSettings.email" />
+            <el-switch
+              v-model="notificationSettings.email"
+              active-text="开启"
+              inactive-text="关闭"
+              style="--el-switch-on-color: #6366f1; --el-switch-off-color: #d1d5db;"
+            />
           </el-form-item>
           <el-form-item label="匹配提醒">
-            <el-switch v-model="notificationSettings.match" />
+            <el-switch
+              v-model="notificationSettings.match"
+              active-text="开启"
+              inactive-text="关闭"
+              style="--el-switch-on-color: #6366f1; --el-switch-off-color: #d1d5db;"
+            />
           </el-form-item>
           <el-form-item label="审核提醒">
-            <el-switch v-model="notificationSettings.verification" />
+            <el-switch
+              v-model="notificationSettings.verification"
+              active-text="开启"
+              inactive-text="关闭"
+              style="--el-switch-on-color: #6366f1; --el-switch-off-color: #d1d5db;"
+            />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="handleSaveSettings">保存设置</el-button>

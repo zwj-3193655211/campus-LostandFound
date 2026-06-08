@@ -106,9 +106,9 @@ if /I "!DB_EXISTS!"=="%DB_NAME%" (
 echo   [OK] Database is ready
 echo.
 
-echo [INFO] Freeing ports 18090/3000 (kills any stale backend/frontend from prior runs)
+echo [INFO] Freeing ports 18090/5173 (kills any stale backend/frontend from prior runs)
 call :kill_stale_port 18090
-call :kill_stale_port 3000
+call :kill_stale_port 5173
 echo.
 echo [4/6] Building backend
 pushd "%BACKEND_DIR%"
@@ -149,7 +149,7 @@ start "Campus Frontend" cmd /k ""%BASE_DIR%start-frontend.bat""
 echo.
 echo ============================================
 echo   Startup commands have been sent
-echo   Frontend: http://localhost:3000
+echo   Frontend: http://localhost:5173
 echo   Backend:  http://localhost:18090
 echo   Docs:     http://localhost:18090/swagger-ui.html
 echo.

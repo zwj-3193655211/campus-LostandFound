@@ -1,56 +1,138 @@
 <template>
-  <el-dialog title="用户注册" :model-value="true" @close="$emit('close')" width="440px" append-to-body>
-    <el-form :model="form" :rules="rules" ref="formRef" label-width="92px">
-      <el-form-item label="用户名" prop="username">
-        <el-input v-model="form.username" placeholder="请输入用户名(3-20位)" />
-      </el-form-item>
-      <el-form-item label="密码" prop="password">
-        <el-input v-model="form.password" type="password" placeholder="请输入密码(至少6位)" show-password />
-      </el-form-item>
-      <el-form-item label="确认密码" prop="confirmPassword">
-        <el-input v-model="form.confirmPassword" type="password" placeholder="请确认密码" show-password />
-      </el-form-item>
-      <el-form-item label="邮箱" prop="email">
-        <el-input v-model="form.email" placeholder="请输入真实邮箱,用于接收验证码" @blur="onEmailBlur" />
-      </el-form-item>
-      <el-form-item label="验证码" prop="code">
-        <div class="code-row">
-          <el-input v-model="form.code" placeholder="6位数字" maxlength="6" style="flex: 1" />
-          <el-button
-            type="primary"
-            :disabled="sendingCode || cooldown > 0"
-            :loading="sendingCode"
-            @click="handleSendCode"
-            class="code-btn">
-            {{ cooldown > 0 ? `${cooldown}s 后重试` : (sentBefore ? '重新发送' : '发送验证码') }}
-          </el-button>
+  <el-dialog 
+    title="用户注册" 
+    :model-value="true" 
+    @close="$emit('close')" 
+    width="460px" 
+    append-to-body
+    class="register-modal"
+  >
+    <div class="register-content">
+      <div class="register-header">
+        <div class="logo-icon">
+          <el-icon :size="32"><User /></el-icon>
         </div>
-        <div class="code-hint" v-if="sentBefore && cooldown === 0">
-          验证码 5 分钟内有效,未收到请检查垃圾箱
-        </div>
-      </el-form-item>
-      <el-form-item label="学号/工号" prop="studentId">
-        <el-input v-model="form.studentId" placeholder="请输入学号或工号" />
-      </el-form-item>
-      <el-form-item label="手机号" prop="phone">
-        <el-input v-model="form.phone" placeholder="请输入手机号(选填)" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="handleRegister" :loading="loading" style="width: 100%">
-          {{ loading ? '注册中...' : '注册' }}
-        </el-button>
-      </el-form-item>
-      <div class="form-footer">
-        <span class="link" @click="handleOpenLogin">已有账号?立即登录</span>
+        <h2 class="register-title">创建账号</h2>
+        <p class="register-subtitle">加入我们，开启寻物之旅</p>
       </div>
-    </el-form>
+      
+      <el-form :model="form" :rules="rules" ref="formRef" class="register-form">
+        <el-form-item prop="username" class="form-item">
+          <div class="input-wrapper">
+            <el-icon class="input-icon"><User /></el-icon>
+            <el-input 
+              v-model="form.username" 
+              placeholder="请输入用户名(3-20位)" 
+              class="register-input"
+            />
+          </div>
+        </el-form-item>
+        
+        <el-form-item prop="password" class="form-item">
+          <div class="input-wrapper">
+            <el-icon class="input-icon"><Lock /></el-icon>
+            <el-input 
+              v-model="form.password" 
+              type="password" 
+              placeholder="请输入密码(至少6位)" 
+              show-password 
+              class="register-input"
+            />
+          </div>
+        </el-form-item>
+        
+        <el-form-item prop="confirmPassword" class="form-item">
+          <div class="input-wrapper">
+            <el-icon class="input-icon"><Lock /></el-icon>
+            <el-input 
+              v-model="form.confirmPassword" 
+              type="password" 
+              placeholder="请确认密码" 
+              show-password 
+              class="register-input"
+            />
+          </div>
+        </el-form-item>
+        
+        <el-form-item prop="email" class="form-item">
+          <div class="input-wrapper">
+            <el-icon class="input-icon"><Message /></el-icon>
+            <el-input 
+              v-model="form.email" 
+              placeholder="请输入真实邮箱,用于接收验证码" 
+              @blur="onEmailBlur" 
+              class="register-input"
+            />
+          </div>
+        </el-form-item>
+        
+        <el-form-item prop="code" class="form-item code-item">
+          <div class="code-row">
+            <div class="input-wrapper code-input-wrapper">
+              <el-icon class="input-icon"><Key /></el-icon>
+              <el-input 
+                v-model="form.code" 
+                placeholder="6位数字" 
+                maxlength="6" 
+                class="register-input code-input"
+              />
+            </div>
+            <el-button
+              type="primary"
+              :disabled="sendingCode || cooldown > 0"
+              :loading="sendingCode"
+              @click="handleSendCode"
+              class="code-btn">
+              {{ cooldown > 0 ? `${cooldown}s` : (sentBefore ? '重新发送' : '发送验证码') }}
+            </el-button>
+          </div>
+          <div class="code-hint" v-if="sentBefore && cooldown === 0">
+            验证码 5 分钟内有效,未收到请检查垃圾箱
+          </div>
+        </el-form-item>
+        
+        <el-form-item prop="studentId" class="form-item">
+          <div class="input-wrapper">
+            <el-icon class="input-icon"><CreditCard /></el-icon>
+            <el-input 
+              v-model="form.studentId" 
+              placeholder="请输入学号或工号" 
+              class="register-input"
+            />
+          </div>
+        </el-form-item>
+        
+        <el-form-item prop="phone" class="form-item">
+          <div class="input-wrapper">
+            <el-icon class="input-icon"><Phone /></el-icon>
+            <el-input 
+              v-model="form.phone" 
+              placeholder="请输入手机号(选填)" 
+              class="register-input"
+            />
+          </div>
+        </el-form-item>
+        
+        <el-form-item class="submit-item">
+          <el-button type="primary" @click="handleRegister" :loading="loading" class="register-btn">
+            {{ loading ? '注册中...' : '注 册' }}
+          </el-button>
+        </el-form-item>
+        
+        <div class="form-footer">
+          <span>已有账号？</span>
+          <span class="link" @click="handleOpenLogin">立即登录</span>
+        </div>
+      </el-form>
+    </div>
   </el-dialog>
 </template>
 
 <script setup>
 import { ref, reactive, onUnmounted } from 'vue'
+import { User, Lock, Message, Key, CreditCard, Phone } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
-import { showError, showSuccess } from '../utils/message'
+import { showError, showSuccess, showWarning } from '../utils/message'
 
 const emit = defineEmits(['close', 'open-login'])
 const userStore = useUserStore()
@@ -138,9 +220,15 @@ async function handleSendCode() {
   try {
     const res = await userStore.sendRegisterCode(form.email)
     if (res?.code === 200) {
-      showSuccess(res.message || '验证码已发送,请查收邮箱')
-      sentBefore.value = true
-      startCooldown(60)
+      // data 为 'true' 表示本次成功发送，'false' 表示冷却中
+      if (res.data === 'true' || res.data === true) {
+        showSuccess(res.message || '验证码已发送,请查收邮箱')
+        sentBefore.value = true
+        startCooldown(60)
+      } else {
+        // 正常的冷却提示，不用红色 error
+        showWarning(res.message || '发送过于频繁，请60秒后再试')
+      }
     } else {
       showError(res?.message || '发送失败,请稍后再试')
     }
@@ -202,37 +290,225 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.form-footer {
-  margin-top: 16px;
+:global(.register-modal.el-dialog) {
+  border-radius: 24px !important;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(99, 102, 241, 0.25);
+}
+
+:global(.register-modal .el-dialog__header) {
+  background: #ffffff !important;
+  background-image: none !important;
+  background-color: #ffffff !important;
+  padding: 16px 24px 0 24px !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+:global(.register-modal .el-dialog__title) {
+  display: none;
+}
+
+:global(.register-modal .el-dialog__headerbtn) {
+  background: #ffffff !important;
+}
+
+:global(.register-modal .el-dialog__close) {
+  color: #64748b;
+  font-size: 18px;
+}
+
+:global(.register-modal .el-dialog__close:hover) {
+  color: #1e293b;
+  background: rgba(15, 23, 42, 0.05);
+}
+
+:global(.register-modal .el-dialog__body) {
+  padding: 0 !important;
+}
+
+.register-content {
+  padding: 24px 32px 32px 32px;
+}
+
+.register-header {
   text-align: center;
+  margin-bottom: 32px;
 }
 
-.link {
-  color: var(--app-link);
-  cursor: pointer;
+.logo-icon {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  margin: 0 auto 20px;
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.35);
+}
+
+.register-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.register-subtitle {
   font-size: 14px;
+  color: #64748b;
+  margin: 0;
 }
 
-.link:hover {
-  text-decoration: underline;
+.register-form {
+  margin-top: 8px;
+}
+
+.form-item {
+  margin-bottom: 18px;
+}
+
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.input-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 18px;
+  z-index: 1;
+}
+
+.register-input {
+  width: 100%;
+}
+
+.register-input :deep(.el-input__wrapper) {
+  height: 48px;
+  padding-left: 48px;
+  border-radius: 12px;
+  font-size: 15px;
+  border: 1.5px solid rgba(15, 23, 42, 0.1);
+  background: rgba(15, 23, 42, 0.02);
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+  box-shadow: none;
+}
+
+.register-input :deep(.el-input__inner) {
+  padding-left: 0;
+}
+
+.register-input:hover :deep(.el-input__wrapper) {
+  border-color: rgba(139, 92, 246, 0.3);
+  background: rgba(15, 23, 42, 0.04);
+  box-shadow: none;
+}
+
+.register-input :deep(.el-input__wrapper.is-focus) {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1) !important;
+  background: #fff;
+}
+
+.code-item {
+  margin-bottom: 18px;
 }
 
 .code-row {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
+  width: 100%;
+}
+
+.code-input-wrapper {
+  flex: 1;
+}
+
+.code-input {
   width: 100%;
 }
 
 .code-btn {
   flex-shrink: 0;
-  width: 130px;
+  width: 140px;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+  border: none;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+  transition: all 0.3s ease;
+}
+
+.code-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.code-btn:disabled {
+  background: #cbd5e1;
+  box-shadow: none;
 }
 
 .code-hint {
   font-size: 12px;
-  color: var(--app-text-muted, #909399);
-  margin-top: 4px;
+  color: #94a3b8;
+  margin-top: 8px;
   line-height: 1.4;
+}
+
+.submit-item {
+  margin-bottom: 24px !important;
+}
+
+.register-btn {
+  width: 100%;
+  height: 52px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  border: none;
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.register-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(139, 92, 246, 0.5);
+}
+
+.register-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.form-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.link {
+  color: #8b5cf6;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.link:hover {
+  color: #7c3aed;
+  text-decoration: none;
 }
 </style>

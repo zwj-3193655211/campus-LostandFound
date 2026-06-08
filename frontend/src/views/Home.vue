@@ -23,11 +23,8 @@
             class="search-input"
             @keyup.enter="handleSearch"
           >
-            <template #prepend>
-              <el-icon class="search-icon"><Search /></el-icon>
-            </template>
             <template #append>
-              <el-button @click="handleSearch" type="primary" size="large" class="search-btn">
+              <el-button @click="handleSearch" type="primary" class="search-btn">
                 <el-icon><Search /></el-icon>
                 <span>搜索</span>
               </el-button>
@@ -319,11 +316,13 @@ onMounted(async () => {
 }
 
 .hero-section {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
-  padding: 70px 40px;
-  border-radius: 28px;
-  margin-bottom: 50px;
-  box-shadow: 0 25px 50px -12px rgba(99, 102, 241, 0.4);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 30%, #a855f7 60%, #c084fc 100%);
+  padding: 80px 40px;
+  border-radius: 32px;
+  margin-bottom: 60px;
+  box-shadow: 
+    0 25px 50px -12px rgba(99, 102, 241, 0.4),
+    0 0 100px rgba(99, 102, 241, 0.15);
   position: relative;
   overflow: hidden;
 }
@@ -338,33 +337,33 @@ onMounted(async () => {
 .bg-blob {
   position: absolute;
   border-radius: 50%;
-  opacity: 0.3;
-  filter: blur(60px);
+  opacity: 0.35;
+  filter: blur(80px);
 }
 
 .blob-1 {
-  width: 400px;
-  height: 400px;
-  background: rgba(255, 255, 255, 0.2);
-  top: -100px;
+  width: 500px;
+  height: 500px;
+  background: rgba(255, 255, 255, 0.25);
+  top: -150px;
   right: -100px;
   animation: float 8s ease-in-out infinite;
 }
 
 .blob-2 {
-  width: 300px;
-  height: 300px;
-  background: rgba(139, 92, 246, 0.3);
-  bottom: -50px;
-  left: -50px;
+  width: 350px;
+  height: 350px;
+  background: rgba(139, 92, 246, 0.35);
+  bottom: -80px;
+  left: -80px;
   animation: float 6s ease-in-out infinite;
   animation-delay: -2s;
 }
 
 .blob-3 {
-  width: 250px;
-  height: 250px;
-  background: rgba(236, 72, 153, 0.2);
+  width: 300px;
+  height: 300px;
+  background: rgba(236, 72, 153, 0.25);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
@@ -372,13 +371,34 @@ onMounted(async () => {
   animation-delay: -3s;
 }
 
+.blob-4 {
+  width: 200px;
+  height: 200px;
+  background: rgba(59, 130, 246, 0.2);
+  bottom: 20%;
+  right: 20%;
+  animation: float 5s ease-in-out infinite;
+  animation-delay: -1s;
+}
+
 .bg-grid {
   position: absolute;
   inset: 0;
   background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 50px 50px;
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.bg-radial {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
+  pointer-events: none;
 }
 
 .hero-content {
@@ -402,19 +422,26 @@ onMounted(async () => {
 }
 
 .hero-title {
-  font-size: 56px;
+  font-size: 60px;
   font-weight: 800;
   color: #fff;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   letter-spacing: -0.02em;
-  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  text-shadow: 
+    0 8px 30px rgba(0, 0, 0, 0.2),
+    0 0 60px rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.9) 50%, rgba(255, 255, 255, 0.8) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .hero-subtitle {
-  font-size: 22px;
-  color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 40px;
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.92);
+  margin-bottom: 48px;
   font-weight: 400;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .hero-search {
@@ -423,7 +450,6 @@ onMounted(async () => {
 }
 
 .search-input {
-  height: 56px;
   font-size: 16px;
   border-radius: 16px !important;
   background: rgba(255, 255, 255, 0.98);
@@ -433,28 +459,47 @@ onMounted(async () => {
   transition: all 0.3s ease;
 }
 
-.search-input:focus {
+/* 让输入主体高度为 56px */
+.search-input :deep(.el-input__wrapper) {
+  height: 56px;
+  box-shadow: none;
+  border-radius: 16px 0 0 16px;
+}
+
+/* append 容器撑满高度 */
+.search-input :deep(.el-input-group__append) {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0 16px 16px 0;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+}
+
+/* 按钮撑满 append */
+.search-input :deep(.el-input-group__append .el-button) {
+  height: 100%;
+  margin: 0;
+  border-radius: 0 16px 16px 0;
+  padding: 0 36px;
+  font-weight: 600;
+  font-size: 16px;
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+  border: none;
+  box-shadow: none;
+  color: #fff;
+}
+
+.search-input:focus-within {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   border-color: rgba(99, 102, 241, 0.4);
 }
 
-.search-icon {
-  color: #94a3b8;
-}
-
-.search-btn {
-  border-radius: 0 16px 16px 0 !important;
-  padding: 0 36px;
-  font-weight: 600;
-  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
-  border: none;
-  box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
-}
-
-.search-btn:hover {
-  background: linear-gradient(135deg, #db2777 0%, #e11d48 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
+.search-btn:hover,
+.search-input :deep(.el-input-group__append .el-button:hover) {
+  background: linear-gradient(135deg, #db2777 0%, #e11d48 100%) !important;
+  box-shadow: none !important;
 }
 
 .hero-stats {
@@ -573,12 +618,14 @@ onMounted(async () => {
 
 .feature-card {
   background: #fff;
-  padding: 40px 28px;
-  border-radius: 24px;
+  padding: 44px 32px;
+  border-radius: 28px;
   text-align: center;
   border: 1px solid rgba(15, 23, 42, 0.06);
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 4px 20px rgba(15, 23, 42, 0.04),
+    0 1px 3px rgba(15, 23, 42, 0.06);
+  transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
   animation: fadeInUp 0.6s ease-out forwards;
   opacity: 0;
   position: relative;
@@ -586,24 +633,41 @@ onMounted(async () => {
 }
 
 .feature-card:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 25px 50px rgba(15, 23, 42, 0.12);
-  border-color: rgba(99, 102, 241, 0.2);
+  transform: translateY(-12px) scale(1.02);
+  box-shadow: 
+    0 25px 50px rgba(15, 23, 42, 0.14),
+    0 8px 20px rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.25);
 }
 
 .feature-icon {
-  width: 96px;
-  height: 96px;
-  border-radius: 26px;
+  width: 100px;
+  height: 100px;
+  border-radius: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 24px;
-  transition: all 0.3s ease;
+  margin: 0 auto 28px;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.feature-icon::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 32px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
 }
 
 .feature-card:hover .feature-icon {
-  transform: scale(1.1);
+  transform: scale(1.12);
+}
+
+.feature-card:hover .feature-icon::before {
+  opacity: 1;
 }
 
 .feature-glow {
@@ -976,27 +1040,32 @@ onMounted(async () => {
   font-size: 15px;
 }
 
-.cta-buttons .el-button--primary {
-  background: #fff;
-  color: #6366f1;
-  border: none;
+/* 发布信息按钮：白底紫字 */
+.cta-buttons :deep(.el-button--primary) {
+  background: #fff !important;
+  color: #6366f1 !important;
+  border: none !important;
   box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
 }
 
-.cta-buttons .el-button--primary:hover {
-  background: #fff;
+.cta-buttons :deep(.el-button--primary:hover) {
+  background: #f0f0ff !important;
+  color: #4f46e5 !important;
   transform: translateY(-2px);
   box-shadow: 0 12px 35px rgba(255, 255, 255, 0.4);
 }
 
-.cta-buttons .el-button--default {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+/* 浏览物品按钮：透明底白字白边框 */
+.cta-buttons :deep(.el-button--default) {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.6) !important;
 }
 
-.cta-buttons .el-button--default:hover {
-  background: rgba(255, 255, 255, 0.25);
+.cta-buttons :deep(.el-button--default:hover) {
+  background: rgba(255, 255, 255, 0.28) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.85) !important;
 }
 
 @media (max-width: 768px) {

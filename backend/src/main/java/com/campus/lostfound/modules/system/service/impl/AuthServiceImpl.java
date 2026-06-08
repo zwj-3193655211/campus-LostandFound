@@ -1,5 +1,6 @@
 package com.campus.lostfound.modules.system.service.impl;
 
+import cn.dev33.satoken.stp.SaLoginModel;
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -21,21 +22,34 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 认证服务实现 - 纯 Sa-Token(不再用 JwtUtils)
+ * 认证服务实现 - 纯 Sa-Token(JWT Stateless 模式)
  *
- * 流程:
- *   登录: StpUtil.login(userId)  → Sa-Token 自动签 JWT → 返回 tokenValue
- *   校验: Sa-Token 自带 SaServletFilter,从 Authorization 头读 token 并验证
- *   续期: 用 refresh token(loginType=refresh)再走一遍 login 即可
- *   登出: StpUtil.logout() 自动从 Sa-Token 会话中删除
+ * <p>Sa-Token 配置为 {@code StpLogicJwtForStateless},所有会话状态都封装在
+ * JWT 自身的签名 + {@code eff} 过期戳里,后端不持有任何会话存储。
+ * 因此:
+ * <ul>
+ *   <li>access token 过期时间由 {@code SaLoginModel.setTimeout(...)} 写进
+ *       JWT 的 {@code eff} 字段;</li>
+ *   <li>refresh token 同样由 {@code eff} 字段控制,与 access 互不干扰;</li>
+ *   <li>{@code StpUtil.login(id, "access")} 里的字符串其实是 Sa-Token 的
+ *       {@code device} 参数(device 写进 JWT 的 {@code device} claim,
+ *       用来区分多端登录),与"loginType"无关 —— access/refresh 两个 token
+ *       仍然在同一个 {@code loginType="login"} 命名空间下。</li>
+ * </ul>
+ * </p>
  */
 @Service
 public class AuthServiceImpl implements AuthService {
 
     private static final String VERIFY_PURPOSE_REGISTER = "register";
-    /** Sa-Token 的 loginType 区分 access/refresh */
-    private static final String LOGIN_TYPE_ACCESS = "access";
-    private static final String LOGIN_TYPE_REFRESH = "refresh";
+    /** 设备标识 —— 写进 JWT 的 device claim,不参与权限判断 */
+    private static final String DEVICE_ACCESS = "access";
+    private static final String DEVICE_REFRESH = "refresh";
+
+    /** access token 有效期:7 天(秒) —— 7 天内不用重新登录 */
+    private static final long ACCESS_TIMEOUT_SECONDS = 7L * 24 * 60 * 60;
+    /** refresh token 有效期:30 天(秒) —— 用来续 access */
+    private static final long REFRESH_TIMEOUT_SECONDS = 30L * 24 * 60 * 60;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -117,15 +131,18 @@ public class AuthServiceImpl implements AuthService {
         user.setLastLoginTime(LocalDateTime.now());
         userRepository.updateById(user);
 
-        // 签发 access token(Sa-Token JWT,loginType=access)
-        StpUtil.login(user.getId(), LOGIN_TYPE_ACCESS);
+        // 签发 access token(7 天) —— device="access" 写进 JWT 的 device claim
+        // Sa-Token 的 StpUtil.login() 是 void,要拿 token 值用 getTokenValue()
+        StpUtil.login(user.getId(), new SaLoginModel()
+                .setDevice(DEVICE_ACCESS)
+                .setTimeout(ACCESS_TIMEOUT_SECONDS));
         String accessToken = StpUtil.getTokenValue();
 
-        // 签发 refresh token(loginType=refresh,不同 loginType 互不影响)
-        StpUtil.login(user.getId(), LOGIN_TYPE_REFRESH);
+        // 签发 refresh token(30 天) —— device="refresh"
+        StpUtil.login(user.getId(), new SaLoginModel()
+                .setDevice(DEVICE_REFRESH)
+                .setTimeout(REFRESH_TIMEOUT_SECONDS));
         String refreshToken = StpUtil.getTokenValue();
-        // 回到 access 会话用于后续业务请求
-        StpUtil.switchTo(LOGIN_TYPE_ACCESS);
 
         Map<String, Object> result = new HashMap<>();
         result.put("token", accessToken);
@@ -139,36 +156,34 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Map<String, Object> refreshToken(String refreshToken) {
-        // 切到 refresh loginType 校验这个 token 是否有效
-        StpUtil.switchTo(LOGIN_TYPE_REFRESH);
-        try {
-            if (refreshToken == null || refreshToken.isBlank()) {
-                throw new BusinessException("无效的刷新令牌");
-            }
-            // 通过 Sa-Token 解析 refresh token
-            Object loginId = StpUtil.getLoginIdByToken(refreshToken);
-            if (loginId == null) {
-                throw new BusinessException("无效的刷新令牌");
-            }
-            User user = userRepository.selectById(Long.valueOf(loginId.toString()));
-            if (user == null || user.getStatus() == 0) {
-                throw new BusinessException("用户不存在或已被禁用");
-            }
-
-            // 重新签发两个 token
-            StpUtil.login(user.getId(), LOGIN_TYPE_ACCESS);
-            String newAccessToken = StpUtil.getTokenValue();
-            StpUtil.login(user.getId(), LOGIN_TYPE_REFRESH);
-            String newRefreshToken = StpUtil.getTokenValue();
-            StpUtil.switchTo(LOGIN_TYPE_ACCESS);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("accessToken", newAccessToken);
-            result.put("refreshToken", newRefreshToken);
-            return result;
-        } finally {
-            StpUtil.switchTo(LOGIN_TYPE_ACCESS);
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BusinessException("无效的刷新令牌");
         }
+        // Stateless 模式下,JWT 自带 loginId,直接用 SaJwtUtil 验签 + 取 loginId
+        // (不再依赖 switchTo —— 那个对 JWT 无意义)
+        Object loginId = StpUtil.getLoginIdByToken(refreshToken);
+        if (loginId == null) {
+            throw new BusinessException("无效的刷新令牌");
+        }
+        User user = userRepository.selectById(Long.valueOf(loginId.toString()));
+        if (user == null || user.getStatus() == 0) {
+            throw new BusinessException("用户不存在或已被禁用");
+        }
+
+        // 重新签发两个 token
+        StpUtil.login(user.getId(), new SaLoginModel()
+                .setDevice(DEVICE_ACCESS)
+                .setTimeout(ACCESS_TIMEOUT_SECONDS));
+        String newAccessToken = StpUtil.getTokenValue();
+        StpUtil.login(user.getId(), new SaLoginModel()
+                .setDevice(DEVICE_REFRESH)
+                .setTimeout(REFRESH_TIMEOUT_SECONDS));
+        String newRefreshToken = StpUtil.getTokenValue();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("accessToken", newAccessToken);
+        result.put("refreshToken", newRefreshToken);
+        return result;
     }
 
     private Map<String, Object> buildUserMap(User user) {

@@ -18,14 +18,14 @@
         </el-col>
         
         <el-col :span="4">
-          <el-select v-model="filters.type" placeholder="选择类型" clearable>
+          <el-select v-model="filters.type" placeholder="选择类型" clearable @change="handleSearch" @clear="handleSearch">
             <el-option label="寻物" value="LOST" />
             <el-option label="招领" value="FOUND" />
           </el-select>
         </el-col>
         
         <el-col :span="4">
-          <el-select v-model="filters.category" placeholder="选择类别" clearable>
+          <el-select v-model="filters.category" placeholder="选择类别" clearable @change="handleSearch" @clear="handleSearch">
             <el-option 
               v-for="cat in itemStore.categories" 
               :key="cat.value" 
@@ -36,7 +36,7 @@
         </el-col>
         
         <el-col :span="4">
-          <el-select v-model="filters.locationId" placeholder="选择位置" clearable>
+          <el-select v-model="filters.locationId" placeholder="选择位置" clearable @change="handleSearch" @clear="handleSearch">
             <el-option 
               v-for="loc in itemStore.locations" 
               :key="loc.id" 
@@ -214,6 +214,38 @@ watch(
 
 .search-input {
   width: 100%;
+}
+
+/* 整体圆角统一，让左侧和右侧圆角视觉一致 */
+.search-input :deep(.el-input-group--append) {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* 左侧 input wrapper 右边接合处设为直角 */
+.search-input :deep(.el-input__wrapper) {
+  border-radius: 10px 0 0 10px;
+  box-shadow: 0 0 0 1px var(--app-border) inset;
+}
+
+/* append 容器无缝接合，清零 padding */
+.search-input :deep(.el-input-group__append) {
+  padding: 0;
+  border-radius: 0 10px 10px 0;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: stretch;
+}
+
+/* 按钮铺满 append 区域，右侧保留圆角 */
+.search-input :deep(.el-input-group__append .el-button) {
+  height: 100%;
+  margin: 0;
+  border-radius: 0 10px 10px 0;
+  padding: 0 18px;
+  border: none;
 }
 
 .stats-row {

@@ -301,29 +301,43 @@ watch(() => route.params.id, async (newId) => {
 .tags {
   display: flex;
   justify-content: center;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 
 .tag-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-weight: 500;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 24px;
+  font-weight: 600;
   font-size: 13px;
-  transition: all 0.3s ease;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.tag-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .tag-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.tag-item:hover::before {
+  opacity: 0.1;
 }
 
 .tag-icon {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .item-title {
@@ -403,23 +417,53 @@ watch(() => route.params.id, async (newId) => {
 .info-card {
   overflow: hidden;
   opacity: 0;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.info-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.1);
+  border-color: rgba(99, 102, 241, 0.15);
 }
 
 .info-card-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: var(--app-space-4);
+  padding: 20px 20px 0;
 }
 
 .info-card-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.info-card-icon::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 18px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.info-card:hover .info-card-icon {
+  transform: scale(1.1);
+}
+
+.info-card:hover .info-card-icon::before {
+  opacity: 0.15;
 }
 
 .info-icon-item {
@@ -427,9 +471,17 @@ watch(() => route.params.id, async (newId) => {
   color: #6366f1;
 }
 
+.info-icon-item::before {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
 .info-icon-location {
   background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
   color: #10b981;
+}
+
+.info-icon-location::before {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
 .info-icon-desc {
@@ -437,14 +489,26 @@ watch(() => route.params.id, async (newId) => {
   color: #3b82f6;
 }
 
+.info-icon-desc::before {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
 .info-icon-notify {
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
   color: #f59e0b;
 }
 
+.info-icon-notify::before {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
 .info-icon-contact {
   background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
   color: #ec4899;
+}
+
+.info-icon-contact::before {
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
 }
 
 .info-card-title {
@@ -493,55 +557,68 @@ watch(() => route.params.id, async (newId) => {
 .detail-actions {
   display: flex;
   justify-content: center;
-  gap: 16px;
+  gap: 20px;
   margin-bottom: var(--app-space-10);
   flex-wrap: wrap;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(139, 92, 246, 0.03) 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(99, 102, 241, 0.08);
 }
 
 .action-btn {
-  padding: 14px 32px;
+  padding: 16px 40px;
   font-weight: 600;
-  font-size: 15px;
-  border-radius: 14px;
+  font-size: 16px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
+  gap: 10px;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 200px;
+  justify-content: center;
 }
 
 .action-btn-primary {
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   border: none;
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
 }
 
 .action-btn-primary:hover {
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.45);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(99, 102, 241, 0.5);
 }
 
 .action-btn-success {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: none;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
 
 .action-btn-success:hover {
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.45);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(16, 185, 129, 0.5);
+}
+
+.action-btn-success:active {
+  transform: translateY(-1px);
 }
 
 .action-btn-default {
-  background: rgba(15, 23, 42, 0.04);
-  border: 1px solid var(--app-border);
+  background: #fff;
+  border: 2px solid rgba(15, 23, 42, 0.1);
   color: var(--app-text);
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.06);
 }
 
 .action-btn-default:hover {
-  background: rgba(15, 23, 42, 0.08);
-  border-color: rgba(99, 102, 241, 0.2);
+  background: rgba(99, 102, 241, 0.04);
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(15, 23, 42, 0.1);
 }
 
 .related-section {

@@ -49,6 +49,22 @@ export function createAuthGuard() {
     }
 
     if (to.meta.requiresAuth && !token) {
+      const pinia = window.__pinia
+      if (pinia) {
+        try {
+          const userModule = require('../stores/user')
+          if (userModule && userModule.useUserStore) {
+            const userStore = userModule.useUserStore(pinia)
+            if (userStore && userStore.token) {
+              userStore.persistAuth()
+              next()
+              return
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to access user store:', e)
+        }
+      }
       next({
         path: '/',
         query: {

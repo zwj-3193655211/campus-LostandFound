@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell, CloseBold } from '@element-plus/icons-vue'
 import { useNotificationStore } from '../stores/notification'
@@ -64,7 +64,8 @@ const emit = defineEmits(['update:modelValue', 'close'])
 const router = useRouter()
 const notificationStore = useNotificationStore()
 
-const notifications = ref([])
+// 使用 computed 直接映射 store，避免 fetchNotifications 替换数组后引用脱钩导致显示"暂无通知"
+const notifications = computed(() => notificationStore.notifications)
 
 const handleClose = () => {
   emit('update:modelValue', false)
@@ -116,18 +117,18 @@ const handleClick = async (notification) => {
 
 const handleMarkAllRead = async () => {
   await notificationStore.markAllAsRead()
-  notifications.value = notificationStore.notifications
+  // computed 自动同步，无需手动赋值
 }
 
 onMounted(async () => {
   await notificationStore.fetchNotifications()
-  notifications.value = notificationStore.notifications
+  // computed 自动同步，无需手动赋值
 })
 
 watch(() => props.modelValue, async (newVal) => {
   if (newVal) {
     await notificationStore.fetchNotifications()
-    notifications.value = notificationStore.notifications
+    // computed 自动同步，无需手动赋值
   }
 })
 </script>

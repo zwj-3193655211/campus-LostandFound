@@ -22,10 +22,13 @@ import java.util.List;
 
 /**
  * Sa-Token → Spring Security 桥接过滤器
+ * 
+ * 通过 WebSecurityConfig.addFilterBefore() 添加到 Spring Security 过滤器链中
+ * 在 UsernamePasswordAuthenticationFilter 之前执行。
  *
  * 流程:
  *   1. 从 Authorization 头拿 Sa-Token token
- *   2. 调 StpUtil 检查登录态
+ *   2. 使用 StpUtil.getLoginIdByToken() 解析 JWT token 获取用户ID
  *   3. 从 DB 查 user(实时,角色/禁用立即生效)
  *   4. 把 user + ROLE_xxx 塞进 SecurityContext
  *   5. 后续 .hasAnyRole("ADMIN") 等 URL 权限校验才能正常工作
@@ -48,14 +51,23 @@ public class SaTokenAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        String path = request.getRequestURI();
         String token = getTokenFromRequest(request);
-        if (StringUtils.hasText(token) && StpUtil.isLogin()) {
+        boolean hasToken = StringUtils.hasText(token);
+        log.debug("请求路径: {}, Token存在: {}, 请求方法: {}", path, hasToken, request.getMethod());
+        
+        if (hasToken) {
+            log.debug("Token值(前50字符): {}", token.length() > 50 ? token.substring(0, 50) + "..." : token);
+            
             try {
-                Object loginId = StpUtil.getLoginId();
+                Object loginId = StpUtil.getLoginIdByToken(token);
+                log.debug("Sa-Token 验证成功, 用户ID: {}", loginId);
+                
                 if (loginId != null) {
                     User user = userRepository.selectById(Long.valueOf(loginId.toString()));
                     if (user != null && Integer.valueOf(1).equals(user.getStatus())) {
                         String role = user.getRole();
+                        log.debug("用户角色: {}", role);
                         List<SimpleGrantedAuthority> authorities = role != null
                                 ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
                                 : List.of();
@@ -65,10 +77,14 @@ public class SaTokenAuthenticationFilter extends OncePerRequestFilter {
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                         log.debug("用户 {} 认证成功 (Sa-Token)", user.getUsername());
+                    } else if (user == null) {
+                        log.warn("Sa-Token 验证通过但用户不存在: loginId={}, 路径={}", loginId, path);
+                    } else {
+                        log.warn("Sa-Token 验证通过但用户被禁用: username={}, status={}, 路径={}", user.getUsername(), user.getStatus(), path);
                     }
                 }
             } catch (Exception e) {
-                log.error("Sa-Token 解析失败: {}", e.getMessage());
+                log.warn("Sa-Token 验证失败: {}, 路径={}, Token前20字符={}", e.getMessage(), path, token.length() > 20 ? token.substring(0, 20) : token);
                 SecurityContextHolder.clearContext();
             }
         }
