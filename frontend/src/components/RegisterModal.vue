@@ -216,6 +216,11 @@ async function handleSendCode() {
     showError('邮箱格式不正确')
     return
   }
+  // 防重复提交
+  if (sendingCode.value || cooldown.value > 0) {
+    return
+  }
+  
   sendingCode.value = true
   try {
     const res = await userStore.sendRegisterCode(form.email)
@@ -226,15 +231,23 @@ async function handleSendCode() {
         sentBefore.value = true
         startCooldown(60)
       } else {
-        // 正常的冷却提示，不用红色 error
+        // 后端返回冷却中，也启动前端倒计时
         showWarning(res.message || '发送过于频繁，请60秒后再试')
+        startCooldown(60)
       }
     } else {
       showError(res?.message || '发送失败,请稍后再试')
     }
   } catch (error) {
     console.error('发送验证码失败:', error)
-    showError(error?.response?.data?.message || error?.message || '发送失败')
+    const errMsg = error?.response?.data?.message || error?.message || '发送失败'
+    // 如果是冷却中，显示警告而非错误
+    if (errMsg.includes('冷却') || errMsg.includes('频繁')) {
+      showWarning(errMsg)
+      startCooldown(60)
+    } else {
+      showError(errMsg)
+    }
   } finally {
     sendingCode.value = false
   }
