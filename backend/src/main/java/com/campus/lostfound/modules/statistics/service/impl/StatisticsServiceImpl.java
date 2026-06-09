@@ -4,9 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campus.lostfound.common.constant.ItemConstants;
 import com.campus.lostfound.modules.common.service.RedisCacheService;
 import com.campus.lostfound.modules.item.entity.Item;
-import com.campus.lostfound.modules.item.entity.Location;
 import com.campus.lostfound.modules.item.repository.ItemRepository;
-import com.campus.lostfound.modules.item.repository.LocationRepository;
 import com.campus.lostfound.modules.match.entity.Match;
 import com.campus.lostfound.modules.match.repository.MatchRepository;
 import com.campus.lostfound.modules.statistics.entity.DailyStatistics;
@@ -51,18 +49,16 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final ItemRepository itemRepository;
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
-    private final LocationRepository locationRepository;
     private final DailyStatisticsRepository statisticsRepository;
     private final RedisCacheService cacheService;
 
     public StatisticsServiceImpl(ItemRepository itemRepository, MatchRepository matchRepository,
-                                UserRepository userRepository, LocationRepository locationRepository,
+                                UserRepository userRepository,
                                 DailyStatisticsRepository statisticsRepository,
                                 RedisCacheService cacheService) {
         this.itemRepository = itemRepository;
         this.matchRepository = matchRepository;
         this.userRepository = userRepository;
-        this.locationRepository = locationRepository;
         this.statisticsRepository = statisticsRepository;
         this.cacheService = cacheService;
     }
@@ -228,16 +224,34 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Override
     public Map<String, Long> getPopularLocations() {
+        // 从 items 表的 location 字段直接统计
+        LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<>();
+        wrapper.select(Item::getLocation)
+               .in(Item::getStatus, PUBLIC_ITEM_STATUSES)
+               .eq(Item::getDeleted, 0)
+               .isNotNull(Item::getLocation);
+        
+        List<Item> items = itemRepository.selectList(wrapper);
+        
+        // 统计每个位置的出现次数
         Map<String, Long> locations = new LinkedHashMap<>();
-        for (Location location : locationRepository.selectList(null)) {
-            LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(Item::getLocationId, location.getId()).eq(Item::getDeleted, 0);
-            long count = itemRepository.selectCount(wrapper);
-            if (count > 0) {
-                locations.put(location.getName(), count);
+        for (Item item : items) {
+            String location = item.getLocation();
+            if (location != null && !location.trim().isEmpty()) {
+                locations.put(location, locations.getOrDefault(location, 0L) + 1);
             }
         }
-        return locations;
+        
+        // 按数量排序并取前 20 个
+        return locations.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(20)
+                .collect(java.util.stream.Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (e1, e2) -> e1,
+                        LinkedHashMap::new
+                ));
     }
 
     @Override

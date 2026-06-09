@@ -1,5 +1,9 @@
 <template>
   <div class="profile-page app-page">
+    <div class="page-header">
+      <BackButton show-text />
+      <div class="header-title">个人中心</div>
+    </div>
     <div class="profile-header">
       <div class="avatar-section">
         <el-avatar :size="110" :icon="User" class="avatar" />
@@ -111,6 +115,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { User } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
 import { showError, showSuccess, showWarning } from '../utils/message'
+import BackButton from '../components/BackButton.vue'
 
 const userStore = useUserStore()
 

@@ -1,6 +1,7 @@
 <template>
   <div class="admin-dashboard">
     <div class="dashboard-header">
+      <BackButton show-text />
       <h2>管理员控制台</h2>
       <span class="current-time">{{ currentTime }}</span>
     </div>
@@ -63,6 +64,29 @@
         <div class="stat-info">
           <p class="stat-value">{{ stats.claimRate }}%</p>
           <p class="stat-label">完成率</p>
+        </div>
+      </el-card>
+    </div>
+
+    <div class="quick-actions-bar">
+      <el-card class="quick-actions-card">
+        <div class="quick-actions">
+          <el-button @click="goToUsers" type="primary" class="action-btn">
+            <el-icon><UsersIcon /></el-icon>
+            用户管理
+          </el-button>
+          <el-button @click="goToIdentityVerifications" type="danger" class="action-btn">
+            <el-icon><User /></el-icon>
+            实名审核
+          </el-button>
+          <el-button @click="goToItems" type="success" class="action-btn">
+            <el-icon><Box /></el-icon>
+            物品管理
+          </el-button>
+          <el-button @click="goToStatistics" type="info" class="action-btn">
+            <el-icon><Cellphone /></el-icon>
+            数据统计
+          </el-button>
         </div>
       </el-card>
     </div>
@@ -167,31 +191,6 @@
             </el-table-column>
           </el-table>
         </el-card>
-
-        <el-card title="快速操作">
-          <div class="quick-actions">
-            <el-button @click="goToUsers" type="primary" class="action-btn">
-              <el-icon><UsersIcon /></el-icon>
-              用户管理
-            </el-button>
-            <el-button @click="goToIdentityVerifications" type="danger" class="action-btn">
-              <el-icon><User /></el-icon>
-              实名审核
-            </el-button>
-            <el-button @click="goToItems" type="success" class="action-btn">
-              <el-icon><Box /></el-icon>
-              物品管理
-            </el-button>
-            <el-button @click="goToLocations" type="warning" class="action-btn">
-              <el-icon><Location /></el-icon>
-              位置管理
-            </el-button>
-            <el-button @click="goToStatistics" type="info" class="action-btn">
-              <el-icon><Cellphone /></el-icon>
-              数据统计
-            </el-button>
-          </div>
-        </el-card>
       </div>
     </div>
   </div>
@@ -203,6 +202,7 @@ import { useRouter } from 'vue-router'
 import { useItemStore } from '../stores/item'
 import { useUserStore } from '../stores/user'
 import { showError, showSuccess } from '../utils/message'
+import BackButton from '../components/BackButton.vue'
 import { 
   User, Box, Clock, CircleCheck, Check, ArrowUp, 
   User as UsersIcon, Location, Cellphone 
@@ -308,10 +308,6 @@ const goToItems = () => {
 
 const goToIdentityVerifications = () => {
   router.push('/admin/identity-verifications')
-}
-
-const goToLocations = () => {
-  router.push('/admin/locations')
 }
 
 const goToStatistics = () => {
@@ -497,18 +493,28 @@ onUnmounted(() => {
   color: #999;
 }
 
+.quick-actions-bar {
+  margin-bottom: 20px;
+}
+
+.quick-actions-card {
+  padding: 0;
+}
+
 .quick-actions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
   gap: 12px;
+  padding: 16px;
+  justify-content: space-around;
 }
 
 .action-btn {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 16px;
+  padding: 12px 20px;
+  min-width: 120px;
+  justify-content: center;
 }
 
 .score-high {

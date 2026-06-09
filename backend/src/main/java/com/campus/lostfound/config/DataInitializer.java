@@ -1,31 +1,28 @@
 package com.campus.lostfound.config;
 
-import com.campus.lostfound.common.constant.ItemConstants;
-import com.campus.lostfound.modules.common.service.RedisCacheService;
-import com.campus.lostfound.modules.item.entity.Item;
-import com.campus.lostfound.modules.item.entity.Location;
-import com.campus.lostfound.modules.item.repository.ItemRepository;
-import com.campus.lostfound.modules.item.repository.LocationRepository;
-import com.campus.lostfound.modules.match.service.MatchingService;
-import com.campus.lostfound.modules.system.entity.User;
-import com.campus.lostfound.modules.system.repository.UserRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import com.campus.lostfound.common.constant.ItemConstants;
+import com.campus.lostfound.modules.common.service.RedisCacheService;
+import com.campus.lostfound.modules.item.entity.Item;
+import com.campus.lostfound.modules.item.repository.ItemRepository;
+import com.campus.lostfound.modules.match.service.MatchingService;
+import com.campus.lostfound.modules.system.entity.User;
+import com.campus.lostfound.modules.system.repository.UserRepository;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
-    private final LocationRepository locationRepository;
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final PasswordEncoder passwordEncoder;
@@ -33,12 +30,11 @@ public class DataInitializer implements CommandLineRunner {
     private final RedisCacheService cacheService;
     private final boolean enabled;
 
-    public DataInitializer(LocationRepository locationRepository, UserRepository userRepository, 
+    public DataInitializer(UserRepository userRepository, 
                           ItemRepository itemRepository, PasswordEncoder passwordEncoder,
                           MatchingService matchingService,
                           RedisCacheService cacheService,
                           @Value("${app.init-demo-data:false}") boolean enabled) {
-        this.locationRepository = locationRepository;
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
         this.passwordEncoder = passwordEncoder;
@@ -53,16 +49,15 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Demo data initialization skipped. Use docs/sql/complete_init.sql as the baseline dataset.");
         } else {
             log.info("Starting data initialization...");
-            initLocations();
             initUsers();
             initItems();
             log.info("Data initialization completed.");
         }
-        
+
         // 总是执行匹配（无论是否初始化演示数据）
         triggerMatching();
     }
-    
+
     private void triggerMatching() {
         try {
             log.info("Triggering automatic matching for initialized items...");
@@ -70,9 +65,9 @@ public class DataInitializer implements CommandLineRunner {
             List<Item> approvedItems = itemRepository.selectList(null).stream()
                     .filter(item -> ItemConstants.Status.APPROVED.equals(item.getStatus()))
                     .toList();
-            
+
             log.info("Found {} approved items for matching", approvedItems.size());
-            
+
             // 对每个已审核物品触发匹配
             for (Item item : approvedItems) {
                 try {
@@ -82,95 +77,14 @@ public class DataInitializer implements CommandLineRunner {
                     log.error("Failed to trigger matching for item {}: {}", item.getId(), e.getMessage());
                 }
             }
-            
+
             // 匹配完成后清除统计缓存
             cacheService.clearStatisticsCache();
             log.info("Statistics cache cleared after matching");
-            
+
             log.info("Automatic matching completed");
         } catch (Exception e) {
             log.error("Error during automatic matching: {}", e.getMessage());
-        }
-    }
-
-    private void initLocations() {
-        if (locationRepository.selectCount(null) == 0) {
-            List<Location> locations = new ArrayList<>();
-            
-            Location loc1 = new Location();
-            loc1.setName("教学楼A栋");
-            loc1.setBuilding("教学楼A栋");
-            loc1.setFloor(1);
-            loc1.setDescription("第一教学楼");
-            locations.add(loc1);
-
-            Location loc2 = new Location();
-            loc2.setName("教学楼B栋");
-            loc2.setBuilding("教学楼B栋");
-            loc2.setFloor(1);
-            loc2.setDescription("第二教学楼");
-            locations.add(loc2);
-
-            Location loc3 = new Location();
-            loc3.setName("图书馆");
-            loc3.setBuilding("图书馆");
-            loc3.setFloor(1);
-            loc3.setDescription("主图书馆");
-            locations.add(loc3);
-
-            Location loc4 = new Location();
-            loc4.setName("食堂");
-            loc4.setBuilding("食堂");
-            loc4.setFloor(1);
-            loc4.setDescription("第一食堂");
-            locations.add(loc4);
-
-            Location loc5 = new Location();
-            loc5.setName("操场");
-            loc5.setBuilding("操场");
-            loc5.setFloor(0);
-            loc5.setDescription("主操场");
-            locations.add(loc5);
-
-            Location loc6 = new Location();
-            loc6.setName("体育馆");
-            loc6.setBuilding("体育馆");
-            loc6.setFloor(1);
-            loc6.setDescription("室内体育馆");
-            locations.add(loc6);
-
-            Location loc7 = new Location();
-            loc7.setName("宿舍区1");
-            loc7.setBuilding("宿舍区");
-            loc7.setFloor(1);
-            loc7.setDescription("学生宿舍1-4号楼");
-            locations.add(loc7);
-
-            Location loc8 = new Location();
-            loc8.setName("宿舍区2");
-            loc8.setBuilding("宿舍区");
-            loc8.setFloor(1);
-            loc8.setDescription("学生宿舍5-8号楼");
-            locations.add(loc8);
-
-            Location loc9 = new Location();
-            loc9.setName("行政楼");
-            loc9.setBuilding("行政楼");
-            loc9.setFloor(1);
-            loc9.setDescription("学校行政楼");
-            locations.add(loc9);
-
-            Location loc10 = new Location();
-            loc10.setName("实验楼");
-            loc10.setBuilding("实验楼");
-            loc10.setFloor(1);
-            loc10.setDescription("理科实验楼");
-            locations.add(loc10);
-
-            for (Location loc : locations) {
-                locationRepository.insert(loc);
-            }
-            log.info("Initialized {} locations", locations.size());
         }
     }
 

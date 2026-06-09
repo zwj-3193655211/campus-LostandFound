@@ -64,8 +64,6 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/statistics/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/locations/**").permitAll()
-                        .requestMatchers("/api/locations/**").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN")
                         .requestMatchers("/api/matches/test").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN")
                         .requestMatchers("/api/notifications/send-test-email").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN")
                         .requestMatchers("/api/notifications/send-match-email").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN")

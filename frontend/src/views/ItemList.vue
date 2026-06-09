@@ -36,17 +36,6 @@
         </el-col>
         
         <el-col :span="4">
-          <el-select v-model="filters.locationId" placeholder="选择位置" clearable @change="handleSearch" @clear="handleSearch">
-            <el-option 
-              v-for="loc in itemStore.locations" 
-              :key="loc.id" 
-              :label="loc.name" 
-              :value="loc.id" 
-            />
-          </el-select>
-        </el-col>
-        
-        <el-col :span="4">
           <el-button @click="resetFilters" type="default">重置筛选</el-button>
         </el-col>
       </el-row>
@@ -97,8 +86,7 @@ const emptyText = ref('暂无物品')
 
 const filters = reactive({
   type: '',
-  category: '',
-  locationId: ''
+  category: ''
 })
 
 const pagination = reactive({
@@ -119,7 +107,6 @@ const syncQueryToRoute = async () => {
     keyword: searchKeyword.value || undefined,
     type: filters.type || undefined,
     category: filters.category || undefined,
-    locationId: filters.locationId || undefined,
     page: pagination.current > 1 ? String(pagination.current) : undefined,
     pageSize: pagination.size !== 9 ? String(pagination.size) : undefined
   }
@@ -131,7 +118,6 @@ const applyRouteQuery = () => {
   searchKeyword.value = route.query.keyword || ''
   filters.type = route.query.type || ''
   filters.category = route.query.category || ''
-  filters.locationId = route.query.locationId ? Number(route.query.locationId) : ''
   pagination.current = route.query.page ? Number(route.query.page) : 1
   pagination.size = route.query.pageSize ? Number(route.query.pageSize) : 9
 }
@@ -145,7 +131,6 @@ const resetFilters = async () => {
   searchKeyword.value = ''
   filters.type = ''
   filters.category = ''
-  filters.locationId = ''
   pagination.current = 1
   pagination.size = 9
   await syncQueryToRoute()
@@ -167,8 +152,7 @@ const fetchItems = async () => {
     size: pagination.size,
     keyword: searchKeyword.value || undefined,
     type: filters.type || undefined,
-    category: filters.category || undefined,
-    locationId: filters.locationId || undefined
+    category: filters.category || undefined
   }
   
   try {

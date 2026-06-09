@@ -2,6 +2,7 @@
   <div class="publish-page app-page">
     <div class="page-header-wrapper">
       <div class="app-page-header">
+        <BackButton show-text />
         <div class="header-icon">
           <el-icon :size="40"><EditPen /></el-icon>
         </div>
@@ -183,6 +184,7 @@ import { Plus, EditPen, PriceTag, Briefcase, Document, CreditCard, Brush, Key, L
 import { useItemStore } from '../stores/item'
 import { useUserStore } from '../stores/user'
 import { showError, showSuccess, showWarning } from '../utils/message'
+import BackButton from '../components/BackButton.vue'
 
 const route = useRoute()
 const router = useRouter()

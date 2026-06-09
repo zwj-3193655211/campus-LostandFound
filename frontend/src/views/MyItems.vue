@@ -1,6 +1,7 @@
 <template>
   <div class="my-items-page app-page">
     <div class="page-header app-page-header">
+      <BackButton show-text />
       <div class="app-page-title">
         <el-icon class="page-icon"><Tickets /></el-icon>
         <h2>我的物品</h2>
@@ -63,7 +64,7 @@
           <div class="item-info">
             <div class="info-item">
               <el-icon><Location /></el-icon>
-              <span>{{ getLocationName(item.locationId) }}</span>
+              <span>{{ item.location || '未填写位置' }}</span>
             </div>
             <div class="info-item">
               <el-icon><Calendar /></el-icon>
@@ -125,6 +126,7 @@ import { Location, Calendar, Box, Tickets } from '@element-plus/icons-vue'
 import { useItemStore } from '../stores/item'
 import { confirmAction, showError, showSuccess } from '../utils/message'
 import { formatCompletionTargetStatus, formatDate, formatStatus, getStatusColor, getTypeColor } from '../utils/format'
+import BackButton from '../components/BackButton.vue'
 
 const router = useRouter()
 const itemStore = useItemStore()
@@ -153,11 +155,6 @@ const getTabLabel = () => {
     'claimed': '已匹配/已完成'
   }
   return labelMap[activeTab.value] || ''
-}
-
-const getLocationName = (locationId) => {
-  const location = itemStore.locations.find(l => l.id === locationId)
-  return location?.name || '未知位置'
 }
 
 const getTypeTagType = (type) => getTypeColor(type)

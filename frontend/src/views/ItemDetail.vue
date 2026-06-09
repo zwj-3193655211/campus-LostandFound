@@ -1,5 +1,9 @@
 <template>
   <div class="item-detail-page app-page">
+    <div class="page-header">
+      <BackButton show-text size="default" />
+      <div class="header-title">物品详情</div>
+    </div>
     <div v-if="item" class="detail-content animate-fade-in-up">
       <div class="detail-header">
         <div class="tags">
@@ -185,6 +189,7 @@ import { ElMessageBox } from 'element-plus'
 import { useItemStore } from '../stores/item'
 import { useUserStore } from '../stores/user'
 import ItemCard from '../components/ItemCard.vue'
+import BackButton from '../components/BackButton.vue'
 import { buildPlaceholderImage, formatDate, formatStatus, getStatusColor, getTypeColor } from '../utils/format'
 import { showError, showInfo, showWarning } from '../utils/message'
 

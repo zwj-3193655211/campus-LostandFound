@@ -5,46 +5,124 @@
         <div class="notification-dialog">
           <div class="notification-dialog-header">
             <h3 class="notification-dialog-title">
-              <el-icon><Bell /></el-icon>
-              通知消息
-            </h3>
-            <el-button circle text @click="handleClose">
-              <el-icon><CloseBold /></el-icon>
-            </el-button>
-          </div>
-          <div class="notification-dialog-body">
-            <div class="notification-list">
-              <div v-if="notifications.length === 0" class="empty-state">
-                <el-icon :size="48" class="empty-icon"><Bell /></el-icon>
-                <p>暂无通知</p>
+                <el-icon><Message /></el-icon>
+                通知消息
+                <span class="unread-count" v-if="unreadCount > 0">{{ unreadCount }} 条未读</span>
+              </h3>
+              <div class="header-actions">
+                <el-button @click="handleMarkAllRead" size="small" type="default">全部标为已读</el-button>
+                <el-button circle text @click="handleClose">
+                  <el-icon><CircleCheck /></el-icon>
+                </el-button>
               </div>
-
-              <el-timeline v-else>
-                <el-timeline-item 
-                  v-for="notification in notifications" 
-                  :key="notification.id"
-                  :timestamp="formatTime(notification.createdAt)"
-                  :class="{ 'unread': !notification.isRead }"
+          </div>
+          
+          <div class="notification-body">
+            <!-- 左侧：通知列表 -->
+            <div class="notification-sidebar">
+              <div class="sidebar-tabs">
+                <el-button 
+                  @click="activeTab = 'all'" 
+                  :class="{ active: activeTab === 'all' }"
+                  size="small"
                 >
-                  <el-card class="notification-card" @click="handleClick(notification)">
-                    <div class="notification-header">
-                      <span class="notification-title">{{ notification.title }}</span>
-                      <el-badge v-if="!notification.isRead" type="danger" />
-                    </div>
-                    <p class="notification-content">{{ notification.content }}</p>
-                    <div class="notification-type">
-                      <el-tag :type="getTagType(notification.type)">
-                        {{ getTypeName(notification.type) }}
-                      </el-tag>
-                    </div>
-                  </el-card>
-                </el-timeline-item>
-              </el-timeline>
+                  全部 ({{ notifications.length }})
+                </el-button>
+                <el-button 
+                  @click="activeTab = 'unread'" 
+                  :class="{ active: activeTab === 'unread' }"
+                  size="small"
+                >
+                  未读 ({{ unreadCount }})
+                </el-button>
+              </div>
+              
+              <div class="notification-list">
+                <div v-if="filteredNotifications.length === 0" class="empty-state">
+                  <el-icon :size="48" class="empty-icon"><Bell /></el-icon>
+                  <p>暂无通知</p>
+                </div>
+                
+                <div 
+                  v-for="notification in filteredNotifications" 
+                  :key="notification.id"
+                  class="notification-item"
+                  :class="{ 'active': selectedNotification?.id === notification.id, 'unread': !notification.isRead }"
+                  @click="selectNotification(notification)"
+                >
+                  <div class="notification-item-header">
+                    <span v-if="!notification.isRead" class="unread-dot"></span>
+                    <span class="notification-item-title">{{ notification.title }}</span>
+                  </div>
+                  <p class="notification-item-preview">{{ truncate(notification.content, 50) }}</p>
+                  <div class="notification-item-footer">
+                    <el-tag :type="getTagType(notification.type)" size="small">
+                      {{ getTypeName(notification.type) }}
+                    </el-tag>
+                    <span class="notification-time">{{ formatTime(notification.createdAt) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 右侧：详情内容 -->
+            <div class="notification-content">
+              <div v-if="!selectedNotification" class="empty-content">
+                <el-icon :size="64" class="empty-icon"><Box /></el-icon>
+                <p>请选择一条通知查看详情</p>
+              </div>
+              
+              <div v-else class="content-detail">
+                <div class="content-header">
+                  <h2 class="content-title">{{ selectedNotification.title }}</h2>
+                  <div class="content-meta">
+                    <el-tag :type="getTagType(selectedNotification.type)">
+                      {{ getTypeName(selectedNotification.type) }}
+                    </el-tag>
+                    <span class="content-time">{{ formatFullTime(selectedNotification.createdAt) }}</span>
+                  </div>
+                </div>
+                
+                <div class="content-body">
+                  <p>{{ selectedNotification.content }}</p>
+                </div>
+                
+                <div class="content-footer">
+                  <div class="action-buttons">
+                    <template v-if="selectedNotification.type === 'ITEM_PENDING' || selectedNotification.type === 'VERIFICATION_PENDING'">
+                      <el-button type="primary" @click="goToAudit">
+                        <el-icon><CircleCheck /></el-icon>
+                        去审核
+                      </el-button>
+                    </template>
+                    <template v-else-if="selectedNotification.type === 'MATCH_FOUND'">
+                      <el-button type="success" @click="goToMatch">
+                        <el-icon><Connection /></el-icon>
+                        查看匹配
+                      </el-button>
+                    </template>
+                    <template v-else-if="selectedNotification.type === 'VERIFICATION_RESULT' && selectedNotification.relatedId">
+                      <el-button type="default" @click="goToItem">
+                        <el-icon><Document /></el-icon>
+                        查看物品
+                      </el-button>
+                    </template>
+                  </div>
+                  
+                  <div v-if="!selectedNotification.isRead" class="mark-read">
+                    <el-button @click="markAsRead(selectedNotification)" size="small" text>
+                      <el-icon><Check /></el-icon>
+                      标为已读
+                    </el-button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+          
           <div class="notification-dialog-footer">
-            <el-button @click="handleMarkAllRead" size="small">全部标为已读</el-button>
-            <el-button type="primary" size="small" @click="handleClose">关闭</el-button>
+            <span class="footer-info">{{ notifications.length }} 条通知</span>
+            <el-button type="primary" @click="handleClose">关闭</el-button>
           </div>
         </div>
       </div>
@@ -53,9 +131,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell, CloseBold } from '@element-plus/icons-vue'
+import { Bell, CircleCheck, Message, Box, Connection } from '@element-plus/icons-vue'
 import { useNotificationStore } from '../stores/notification'
 import { formatDate } from '../utils/format'
 
@@ -64,8 +142,22 @@ const emit = defineEmits(['update:modelValue', 'close'])
 const router = useRouter()
 const notificationStore = useNotificationStore()
 
-// 使用 computed 直接映射 store，避免 fetchNotifications 替换数组后引用脱钩导致显示"暂无通知"
+const activeTab = ref('all')
+const selectedNotification = ref(null)
+
 const notifications = computed(() => notificationStore.notifications)
+
+const unreadCount = computed(() => notifications.value.filter(n => !n.isRead).length)
+
+const filteredNotifications = computed(() => {
+  let result = notifications.value
+  
+  if (activeTab.value === 'unread') {
+    result = result.filter(n => !n.isRead)
+  }
+  
+  return result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+})
 
 const handleClose = () => {
   emit('update:modelValue', false)
@@ -80,11 +172,22 @@ const formatTime = (dateStr) => {
   return formatDate(dateStr)
 }
 
+const formatFullTime = (dateStr) => {
+  return formatDate(dateStr)
+}
+
+const truncate = (text, length) => {
+  if (!text) return ''
+  return text.length > length ? text.substring(0, length) + '...' : text
+}
+
 const getTagType = (type) => {
   const typeMap = {
     'MATCH_FOUND': 'success',
     'VERIFICATION_RESULT': 'warning',
-    'SYSTEM': 'info'
+    'SYSTEM': 'info',
+    'ITEM_PENDING': 'danger',
+    'VERIFICATION_PENDING': 'danger'
   }
   return typeMap[type] || 'default'
 }
@@ -93,48 +196,62 @@ const getTypeName = (type) => {
   const typeMap = {
     'MATCH_FOUND': '匹配通知',
     'VERIFICATION_RESULT': '审核结果',
-    'SYSTEM': '系统通知'
+    'SYSTEM': '系统通知',
+    'ITEM_PENDING': '物品待审核',
+    'VERIFICATION_PENDING': '实名待审核'
   }
   return typeMap[type] || type
 }
 
-const handleClick = async (notification) => {
+const selectNotification = async (notification) => {
+  selectedNotification.value = notification
   if (!notification.isRead) {
     await notificationStore.markAsRead(notification.id)
   }
+}
 
-  if (notification.type === 'MATCH_FOUND') {
-    router.push('/matches')
-    emit('close')
-    return
-  }
-
-  if (notification.type === 'VERIFICATION_RESULT' && notification.relatedId) {
-    router.push(`/item/${notification.relatedId}`)
-    emit('close')
-  }
+const markAsRead = async (notification) => {
+  await notificationStore.markAsRead(notification.id)
 }
 
 const handleMarkAllRead = async () => {
   await notificationStore.markAllAsRead()
-  // computed 自动同步，无需手动赋值
+}
+
+const goToAudit = () => {
+  if (selectedNotification.value.type === 'ITEM_PENDING') {
+    router.push('/admin/items?status=PENDING')
+  } else if (selectedNotification.value.type === 'VERIFICATION_PENDING') {
+    router.push('/admin/identity-verifications')
+  }
+  emit('close')
+}
+
+const goToMatch = () => {
+  router.push('/matches')
+  emit('close')
+}
+
+const goToItem = () => {
+  if (selectedNotification.value.relatedId) {
+    router.push(`/item/${selectedNotification.value.relatedId}`)
+    emit('close')
+  }
 }
 
 onMounted(async () => {
   await notificationStore.fetchNotifications()
-  // computed 自动同步，无需手动赋值
 })
 
 watch(() => props.modelValue, async (newVal) => {
   if (newVal) {
     await notificationStore.fetchNotifications()
-    // computed 自动同步，无需手动赋值
+    selectedNotification.value = null
   }
 })
 </script>
 
 <style scoped>
-/* 弹窗遮罩层 */
 .notification-overlay {
   position: fixed;
   top: 0;
@@ -146,67 +263,100 @@ watch(() => props.modelValue, async (newVal) => {
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  padding: 20px;
+  padding: 40px;
 }
 
-/* 弹窗主体 */
 .notification-dialog {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
   width: 100%;
-  max-width: 520px;
-  max-height: 80vh;
+  max-width: 1200px;
+  max-height: 90vh;
+  height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* 弹窗头部 */
 .notification-dialog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 20px 24px;
   border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 .notification-dialog-title {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .notification-dialog-title .el-icon {
   color: var(--app-primary);
 }
 
-/* 弹窗内容区 */
-.notification-dialog-body {
+.unread-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ef4444;
+  background: #fef2f2;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notification-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.notification-sidebar {
+  width: 420px;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sidebar-tabs .el-button {
+  flex: 1;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.sidebar-tabs .el-button.active {
+  background: var(--app-primary);
+  color: white;
+}
+
+.audit-badge {
+  --el-badge-bg-color: #ef4444;
+}
+
+.notification-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0;
-}
-
-/* 弹窗底部 */
-.notification-dialog-footer {
-  padding: 12px 20px;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  background: #f9fafb;
-}
-
-/* 通知列表 */
-.notification-list {
-  max-height: 450px;
-  overflow-y: auto;
+  padding: 12px;
 }
 
 .empty-state {
@@ -220,49 +370,163 @@ watch(() => props.modelValue, async (newVal) => {
   color: #d1d5db;
 }
 
-.notification-card {
+.notification-item {
+  padding: 14px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.3s;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  margin: 0 16px 12px;
+  transition: all 0.25s ease;
+  border: 1px solid transparent;
+  margin-bottom: 8px;
 }
 
-.notification-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+.notification-item:hover {
+  background: #f8fafc;
+  border-color: #e5e7eb;
 }
 
-.notification-header {
+.notification-item.active {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.notification-item.unread {
+  background: #fffbeb;
+}
+
+.notification-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.unread-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  flex-shrink: 0;
+}
+
+.notification-item-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.notification-item-preview {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 10px 0;
+  line-height: 1.4;
+}
+
+.notification-item-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
 }
 
-.notification-title {
-  font-weight: 600;
-  font-size: 14px;
-  color: #1f2937;
+.notification-item-footer .el-tag {
+  font-size: 11px;
+}
+
+.notification-time {
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 .notification-content {
-  color: #6b7280;
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.empty-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+}
+
+.content-detail {
+  max-width: 100%;
+}
+
+.content-header {
+  margin-bottom: 24px;
+}
+
+.content-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 12px 0;
+}
+
+.content-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.content-time {
   font-size: 13px;
-  margin-bottom: 8px;
-  line-height: 1.5;
+  color: #9ca3af;
 }
 
-.notification-type {
-  text-align: right;
+.content-body {
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  margin-bottom: 24px;
 }
 
-.unread .notification-card {
-  border-left: 4px solid var(--app-primary);
-  background: #f0f9ff;
+.content-body p {
+  font-size: 15px;
+  color: #475569;
+  line-height: 1.7;
+  margin: 0;
 }
 
-/* 过渡动画 */
+.content-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.action-buttons .el-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mark-read .el-button {
+  color: #6b7280;
+}
+
+.notification-dialog-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+}
+
+.footer-info {
+  font-size: 13px;
+  color: #6b7280;
+}
+
 .dialog-fade-enter-active,
 .dialog-fade-leave-active {
   transition: opacity 0.3s ease;
@@ -275,11 +539,32 @@ watch(() => props.modelValue, async (newVal) => {
 
 .dialog-fade-enter-active .notification-dialog,
 .dialog-fade-leave-active .notification-dialog {
-  transition: transform 0.3s ease;
+  transition: transform 0.35s ease;
 }
 
 .dialog-fade-enter-from .notification-dialog,
 .dialog-fade-leave-to .notification-dialog {
-  transform: scale(0.9);
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .notification-overlay {
+    padding: 20px;
+  }
+  
+  .notification-dialog {
+    max-height: 90vh;
+  }
+  
+  .notification-body {
+    flex-direction: column;
+  }
+  
+  .notification-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+    max-height: 200px;
+  }
 }
 </style>

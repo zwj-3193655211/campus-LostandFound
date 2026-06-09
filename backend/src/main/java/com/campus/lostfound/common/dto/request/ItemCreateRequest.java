@@ -34,10 +34,8 @@ public class ItemCreateRequest {
     private String color;
 
     @NotBlank(message = "位置不能为空")
-    @Size(max = 100, message = "位置最长100字符")
+    @Size(max = 100, message = "位置最长 100 字符")
     private String location;
-
-    private Long locationId;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lostTime;
@@ -111,14 +109,6 @@ public class ItemCreateRequest {
 
     public void setLocation(String location) {
         this.location = location;
-    }
-
-    public Long getLocationId() {
-        return locationId;
-    }
-
-    public void setLocationId(Long locationId) {
-        this.locationId = locationId;
     }
 
     public LocalDateTime getLostTime() {

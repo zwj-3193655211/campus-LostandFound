@@ -25,9 +25,8 @@ public class RedisCacheService {
     private final ValueOperations<String, Object> valueOperations;
     private final ObjectMapper objectMapper;
 
-    // 缓存Key前缀
+    // 缓存 Key 前缀
     public static final String PREFIX_STATISTICS = "cache:statistics:";
-    public static final String PREFIX_LOCATION = "cache:location:";
     public static final String PREFIX_ITEM = "cache:item:";
     public static final String PREFIX_CATEGORY = "cache:category:";
     public static final String PREFIX_USER = "cache:user:";
@@ -267,45 +266,6 @@ public class RedisCacheService {
      */
     public void clearStatisticsCache() {
         deleteByPattern(PREFIX_STATISTICS + "*");
-    }
-
-    // ============ 地点缓存快捷方法 ============
-
-    /**
-     * 获取所有地点
-     */
-    @SuppressWarnings("unchecked")
-    public List<Map<String, Object>> getAllLocations() {
-        return get(PREFIX_LOCATION + "all", List.class);
-    }
-
-    /**
-     * 设置所有地点
-     */
-    public void setAllLocations(List<Map<String, Object>> locations) {
-        set(PREFIX_LOCATION + "all", locations, Duration.ofHours(LONG_TTL));
-    }
-
-    /**
-     * 获取单个地点
-     */
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> getLocation(Long id) {
-        return get(PREFIX_LOCATION + id, Map.class);
-    }
-
-    /**
-     * 设置单个地点
-     */
-    public void setLocation(Long id, Map<String, Object> location) {
-        set(PREFIX_LOCATION + id, location, Duration.ofHours(LONG_TTL));
-    }
-
-    /**
-     * 清除地点缓存
-     */
-    public void clearLocationCache() {
-        deleteByPattern(PREFIX_LOCATION + "*");
     }
 
     // ============ 物品缓存快捷方法 ============

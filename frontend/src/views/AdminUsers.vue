@@ -1,6 +1,7 @@
 <template>
   <div class="admin-users-page">
     <div class="page-header">
+      <BackButton show-text />
       <h2>用户管理</h2>
       <div class="header-actions">
         <el-input
@@ -137,6 +138,7 @@ import { Search } from '@element-plus/icons-vue'
 import axios from '../utils/axios'
 import { useUserStore } from '../stores/user'
 import { confirmAction, showError, showSuccess } from '../utils/message'
+import BackButton from '../components/BackButton.vue'
 
 const userStore = useUserStore()
 const searchKeyword = ref('')

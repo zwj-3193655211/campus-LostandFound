@@ -85,7 +85,7 @@ const goDetail = () => {
 }
 
 const getAuthorName = (userId) => {
-  return itemStore.getUserName(userId) || '匿名用户'
+  return props.item.username || itemStore.getUserName(userId) || '匿名用户'
 }
 
 const formatTime = (timeStr) => {

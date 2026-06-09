@@ -38,7 +38,7 @@ public class MatchingEngine {
 
         boolean hasSerialConflict = hasSerialConflict(lostType, foundType);
         BigDecimal categoryScore = calculateCategoryScore(lostType.category, foundType.category);
-        BigDecimal locationScore = calculateLocationScore(lostType.locationId, lostType.locationText, foundType.locationId, foundType.locationText);
+        BigDecimal locationScore = calculateLocationScore(lostType.locationText, foundType.locationText);
         BigDecimal brandScore = calculateBrandScore(lostType.brand, foundType.brand);
         BigDecimal colorScore = calculateColorScore(lostType.color, foundType.color);
         BigDecimal timeScore = calculateTimeScore(lostType.lostTime, foundType.foundTime);
@@ -99,13 +99,7 @@ public class MatchingEngine {
         return BigDecimal.ZERO;
     }
 
-    private BigDecimal calculateLocationScore(Long locationId1, String locationText1, Long locationId2, String locationText2) {
-        if (locationId1 != null && locationId2 != null) {
-            if (locationId1.equals(locationId2)) {
-                return BigDecimal.ONE;
-            }
-            return new BigDecimal("0.35");
-        }
+    private BigDecimal calculateLocationScore(String locationText1, String locationText2) {
         BigDecimal textScore = similarityScore(locationText1, locationText2);
         if (textScore.compareTo(BigDecimal.ZERO) == 0) {
             return new BigDecimal("0.5");
@@ -234,7 +228,6 @@ public class MatchingEngine {
 
     public static class LostItem {
         public String category;
-        public Long locationId;
         public String locationText;
         public String brand;
         public String color;
@@ -244,7 +237,6 @@ public class MatchingEngine {
         public LocalDateTime lostTime;
 
         public LostItem(String category,
-                        Long locationId,
                         String locationText,
                         String brand,
                         String color,
@@ -253,7 +245,6 @@ public class MatchingEngine {
                         String serialNumber,
                         LocalDateTime lostTime) {
             this.category = category;
-            this.locationId = locationId;
             this.locationText = locationText;
             this.brand = brand;
             this.color = color;
@@ -266,7 +257,6 @@ public class MatchingEngine {
 
     public static class FoundItem {
         public String category;
-        public Long locationId;
         public String locationText;
         public String brand;
         public String color;
@@ -276,7 +266,6 @@ public class MatchingEngine {
         public LocalDateTime foundTime;
 
         public FoundItem(String category,
-                         Long locationId,
                          String locationText,
                          String brand,
                          String color,
@@ -285,7 +274,6 @@ public class MatchingEngine {
                          String serialNumber,
                          LocalDateTime foundTime) {
             this.category = category;
-            this.locationId = locationId;
             this.locationText = locationText;
             this.brand = brand;
             this.color = color;

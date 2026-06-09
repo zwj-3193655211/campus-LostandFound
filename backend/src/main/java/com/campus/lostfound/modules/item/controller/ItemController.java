@@ -158,7 +158,6 @@ public class ItemController {
         view.setBrand(item.getBrand());
         view.setColor(item.getColor());
         view.setLocation(item.getLocation());
-        view.setLocationId(item.getLocationId());
         view.setLostTime(item.getLostTime());
         view.setFoundTime(item.getFoundTime());
         view.setSerialNumber(DataMaskUtils.maskSerialNumber(item.getSerialNumber()));
@@ -172,6 +171,7 @@ public class ItemController {
         view.setViewCount(item.getViewCount());
         view.setCreatedAt(item.getCreatedAt());
         view.setUpdatedAt(item.getUpdatedAt());
+        view.setUsername(item.getUsername());
         return view;
     }
 

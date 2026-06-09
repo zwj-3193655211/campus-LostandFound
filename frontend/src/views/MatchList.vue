@@ -1,6 +1,7 @@
 <template>
   <div class="match-list-page app-page">
     <div class="page-header app-page-header">
+      <BackButton show-text />
       <div>
         <div class="app-page-title">
           <el-icon class="page-icon"><Connection /></el-icon>
@@ -11,7 +12,7 @@
     </div>
 
     <div class="stats-row app-surface app-panel">
-      <el-statistic title="匹配总数" :value="matches.length" />
+      <el-statistic title="匹配总数" :value="total" />
       <el-statistic title="待确认" :value="pendingCount" />
       <el-statistic title="已确认" :value="confirmedCount" />
       <el-statistic title="已拒绝" :value="rejectedCount" />
@@ -28,7 +29,7 @@
 
     <div class="match-list">
       <el-card 
-        v-for="match in filteredMatches" 
+        v-for="match in matches" 
         :key="match.id" 
         class="match-card"
         shadow="never"
@@ -95,10 +96,22 @@
         </div>
       </el-card>
 
-      <div v-if="filteredMatches.length === 0" class="empty-state">
+      <div v-if="matches.length === 0" class="empty-state">
         <el-icon :size="64" class="empty-icon"><Search /></el-icon>
         <p>暂无匹配记录</p>
       </div>
+    </div>
+
+    <div v-if="total > pageSize" class="pagination-wrapper">
+      <el-pagination
+        v-model:current-page="currentPage"
+        :page-size="pageSize"
+        :total="total"
+        :page-sizes="[20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange"
+        @current-change="handlePageChange"
+      />
     </div>
   </div>
 </template>
@@ -110,21 +123,20 @@ import { useRouter } from 'vue-router'
 import { useItemStore } from '../stores/item'
 import { formatDate } from '../utils/format'
 import { showError, showSuccess } from '../utils/message'
+import BackButton from '../components/BackButton.vue'
 
 const router = useRouter()
 const itemStore = useItemStore()
 
 const matches = ref([])
 const filterStatus = ref('')
+const currentPage = ref(1)
+const pageSize = ref(50)
+const total = ref(0)
 
 const pendingCount = computed(() => matches.value.filter(m => m.status === 'PENDING').length)
 const confirmedCount = computed(() => matches.value.filter(m => m.status === 'CONFIRMED').length)
 const rejectedCount = computed(() => matches.value.filter(m => m.status === 'REJECTED').length)
-
-const filteredMatches = computed(() => {
-  if (!filterStatus.value) return matches.value
-  return matches.value.filter(m => m.status === filterStatus.value)
-})
 
 const getScoreClass = (score) => {
   if (score === null || score === undefined) return 'low'
@@ -163,7 +175,37 @@ const getStatusText = (status) => {
 }
 
 const handleFilter = () => {
-  // 筛选已经通过computed处理
+  currentPage.value = 1
+  fetchMatchList()
+}
+
+const handleSizeChange = (newSize) => {
+  pageSize.value = newSize
+  currentPage.value = 1
+  fetchMatchList()
+}
+
+const handlePageChange = (newPage) => {
+  currentPage.value = newPage
+  fetchMatchList()
+}
+
+const fetchMatchList = async () => {
+  try {
+    const params = {
+      page: currentPage.value,
+      pageSize: pageSize.value
+    }
+    if (filterStatus.value) {
+      params.status = filterStatus.value
+    }
+    const result = await itemStore.fetchMatches(params)
+    matches.value = result?.records || []
+    total.value = result?.total || 0
+  } catch (error) {
+    console.error('获取匹配列表失败:', error)
+    showError(error?.message || '获取匹配列表失败')
+  }
 }
 
 const handleConfirm = async (matchId) => {
@@ -195,13 +237,7 @@ const goDetail = (itemId) => {
 }
 
 onMounted(async () => {
-  try {
-    const result = await itemStore.fetchMatches({ pageSize: 50 })
-    matches.value = result?.records || []
-  } catch (error) {
-    console.error('获取匹配列表失败:', error)
-    showError(error?.message || '获取匹配列表失败')
-  }
+  await fetchMatchList()
 })
 </script>
 
@@ -351,5 +387,11 @@ onMounted(async () => {
 
 .page-icon {
   color: var(--app-primary);
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
 }
 </style>

@@ -105,7 +105,6 @@ public class MatchingServiceImpl implements MatchingService {
         if (ItemConstants.Type.LOST.equals(item1.getType())) {
             MatchingEngine.LostItem lost = new MatchingEngine.LostItem(
                     item1.getCategory(),
-                    item1.getLocationId(),
                     item1.getLocation(),
                     item1.getBrand(),
                     item1.getColor(),
@@ -116,7 +115,6 @@ public class MatchingServiceImpl implements MatchingService {
             );
             MatchingEngine.FoundItem found = new MatchingEngine.FoundItem(
                     item2.getCategory(),
-                    item2.getLocationId(),
                     item2.getLocation(),
                     item2.getBrand(),
                     item2.getColor(),
@@ -130,7 +128,6 @@ public class MatchingServiceImpl implements MatchingService {
 
         MatchingEngine.FoundItem found = new MatchingEngine.FoundItem(
                 item1.getCategory(),
-                item1.getLocationId(),
                 item1.getLocation(),
                 item1.getBrand(),
                 item1.getColor(),
@@ -141,7 +138,6 @@ public class MatchingServiceImpl implements MatchingService {
         );
         MatchingEngine.LostItem lost = new MatchingEngine.LostItem(
                 item2.getCategory(),
-                item2.getLocationId(),
                 item2.getLocation(),
                 item2.getBrand(),
                 item2.getColor(),

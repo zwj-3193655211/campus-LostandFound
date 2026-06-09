@@ -47,6 +47,8 @@ public class ItemConstants {
         public static final String VERIFICATION_RESULT = "VERIFICATION_RESULT";
         public static final String COMPLETION_REVIEW_RESULT = "COMPLETION_REVIEW_RESULT";
         public static final String SYSTEM = "SYSTEM";
+        public static final String ITEM_PENDING = "ITEM_PENDING";
+        public static final String VERIFICATION_PENDING = "VERIFICATION_PENDING";
     }
 
     public static class NotificationTitle {

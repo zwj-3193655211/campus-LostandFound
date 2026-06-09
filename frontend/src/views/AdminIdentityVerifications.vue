@@ -1,6 +1,7 @@
 <template>
   <div class="admin-identity-page">
     <div class="page-header">
+      <BackButton show-text />
       <h2>实名认证审核</h2>
       <el-button type="primary" @click="fetchData">刷新</el-button>
     </div>
@@ -71,6 +72,7 @@ import { ElMessageBox } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import { formatDate } from '../utils/format'
 import { showError, showSuccess } from '../utils/message'
+import BackButton from '../components/BackButton.vue'
 
 const userStore = useUserStore()
 const activeTab = ref('pending')

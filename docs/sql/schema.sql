@@ -61,24 +61,7 @@ CREATE TABLE `user_identity_verifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='实名认证申请记录表';
 
 -- =====================================================
--- 2. 位置区域表
--- =====================================================
-DROP TABLE IF EXISTS `locations`;
-CREATE TABLE `locations` (
-    `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '位置ID',
-    `name` VARCHAR(100) NOT NULL COMMENT '位置名称(如:A教学楼)',
-    `building` VARCHAR(50) COMMENT '所属建筑',
-    `floor` INT COMMENT '楼层',
-    `description` VARCHAR(255) COMMENT '位置描述',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除',
-    INDEX `idx_name` (`name`),
-    INDEX `idx_building` (`building`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='位置区域表';
-
--- =====================================================
--- 3. 失物招领表(统一LOST/FOUND类型)
+-- 3. 失物招领表 (统一 LOST/FOUND 类型)
 -- =====================================================
 DROP TABLE IF EXISTS `items`;
 CREATE TABLE `items` (
@@ -90,7 +73,6 @@ CREATE TABLE `items` (
     `description` TEXT COMMENT '详细描述',
     `brand` VARCHAR(50) COMMENT '品牌/型号',
     `color` VARCHAR(20) COMMENT '颜色',
-    `location_id` BIGINT COMMENT '丢失/拾取地点',
     `location` VARCHAR(100) COMMENT '详细位置文本',
     `lost_time` DATETIME COMMENT '丢失时间',
     `found_time` DATETIME COMMENT '拾取时间',
@@ -107,12 +89,10 @@ CREATE TABLE `items` (
     INDEX `idx_type` (`type`),
     INDEX `idx_category` (`category`),
     INDEX `idx_status` (`status`),
-    INDEX `idx_location_id` (`location_id`),
     INDEX `idx_serial_number` (`serial_number`),
     INDEX `idx_created_at` (`created_at`),
     INDEX `idx_type_status` (`type`, `status`),
-    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
-    FOREIGN KEY (`location_id`) REFERENCES `locations`(`id`) ON DELETE SET NULL
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='失物招领表';
 
 -- =====================================================
@@ -196,19 +176,4 @@ CREATE TABLE `notifications` (
     INDEX `idx_type` (`type`),
     INDEX `idx_created_at` (`created_at`),
     FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='通知表';
-
--- =====================================================
--- 9. 每日统计表
--- =====================================================
-DROP TABLE IF EXISTS `daily_statistics`;
-CREATE TABLE `daily_statistics` (
-    `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '统计ID',
-    `stat_date` DATE NOT NULL UNIQUE COMMENT '统计日期',
-    `lost_count` INT NOT NULL DEFAULT 0 COMMENT '新增寻物启示数',
-    `found_count` INT NOT NULL DEFAULT 0 COMMENT '新增失物招领数',
-    `match_count` INT NOT NULL DEFAULT 0 COMMENT '匹配成功数',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX `idx_stat_date` (`stat_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='每日统计表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='通知记录表';

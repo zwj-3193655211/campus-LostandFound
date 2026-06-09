@@ -34,8 +34,6 @@ public class Item {
     /** 用户填写的详细位置 */
     private String location;
 
-    private Long locationId;
-
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lostTime;
 
@@ -70,6 +68,9 @@ public class Item {
 
     @TableField(exist = false)
     private Boolean potentialOwnerNotified;
+
+    @TableField(exist = false)
+    private String username;
 
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @TableField(fill = FieldFill.INSERT)
@@ -152,14 +153,6 @@ public class Item {
 
     public void setLocation(String location) {
         this.location = location;
-    }
-
-    public Long getLocationId() {
-        return locationId;
-    }
-
-    public void setLocationId(Long locationId) {
-        this.locationId = locationId;
     }
 
     public LocalDateTime getLostTime() {
@@ -288,5 +281,13 @@ public class Item {
 
     public void setPotentialOwnerNotified(Boolean potentialOwnerNotified) {
         this.potentialOwnerNotified = potentialOwnerNotified;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 }

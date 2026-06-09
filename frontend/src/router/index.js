@@ -10,7 +10,6 @@ const MatchList = () => import('../views/MatchList.vue')
 const AdminDashboard = () => import('../views/AdminDashboard.vue')
 const AdminUsers = () => import('../views/AdminUsers.vue')
 const AdminIdentityVerifications = () => import('../views/AdminIdentityVerifications.vue')
-const AdminLocations = () => import('../views/AdminLocations.vue')
 const AdminStatistics = () => import('../views/AdminStatistics.vue')
 const NotFound = () => import('../views/NotFound.vue')
 
@@ -25,7 +24,6 @@ export const routes = [
   { path: '/admin', component: AdminDashboard, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/admin/users', component: AdminUsers, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/admin/identity-verifications', component: AdminIdentityVerifications, meta: { requiresAuth: true, requiresAdmin: true } },
-  { path: '/admin/locations', component: AdminLocations, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/admin/statistics', component: AdminStatistics, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/:pathMatch(.*)*', component: NotFound }
 ]

@@ -17,6 +17,8 @@ import com.campus.lostfound.modules.system.entity.UserIdentityVerification;
 import com.campus.lostfound.modules.system.repository.UserIdentityVerificationRepository;
 import com.campus.lostfound.modules.system.repository.UserRepository;
 import com.campus.lostfound.modules.system.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,8 @@ import java.util.Map;
  */
 @Service
 public class UserServiceImpl implements UserService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
 
     private final UserRepository userRepository;
     private final UserIdentityVerificationRepository identityVerificationRepository;
@@ -122,6 +126,14 @@ public class UserServiceImpl implements UserService {
         record.setCreatedAt(java.time.LocalDateTime.now());
         record.setUpdatedAt(java.time.LocalDateTime.now());
         identityVerificationRepository.insert(record);
+
+        // 向所有管理员发送实名认证待审核通知
+        try {
+            notifyAdminsForPendingVerification(record);
+        } catch (Exception e) {
+            log.error("发送管理员实名认证审核提醒失败: requestId={}", record.getId(), e);
+        }
+
         return sanitize(user);
     }
 
@@ -410,6 +422,43 @@ public class UserServiceImpl implements UserService {
             }
         });
         return records;
+    }
+
+    /**
+     * 向所有管理员发送实名认证待审核通知
+     */
+    private void notifyAdminsForPendingVerification(UserIdentityVerification record) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(User::getRole, UserConstants.ROLE_SUPER_ADMIN, UserConstants.ROLE_CAMPUS_ADMIN);
+        List<User> admins = userRepository.selectList(wrapper);
+
+        if (admins.isEmpty()) {
+            log.warn("没有找到管理员，无法发送实名认证审核提醒通知");
+            return;
+        }
+
+        String title = "新实名认证待审核";
+        String content = String.format(
+                "用户【%s】提交了实名认证申请，真实姓名：%s，请及时审核。",
+                record.getUsername(),
+                record.getRealName()
+        );
+
+        for (User admin : admins) {
+            try {
+                notificationService.create(
+                        admin.getId(),
+                        ItemConstants.NotificationType.VERIFICATION_PENDING,
+                        title,
+                        content,
+                        record.getId()
+                );
+            } catch (Exception e) {
+                log.error("发送实名认证审核提醒通知失败: adminId={}, requestId={}", admin.getId(), record.getId(), e);
+            }
+        }
+
+        log.info("已向 {} 位管理员发送实名认证审核提醒通知: requestId={}", admins.size(), record.getId());
     }
 
     private User sanitize(User user) {

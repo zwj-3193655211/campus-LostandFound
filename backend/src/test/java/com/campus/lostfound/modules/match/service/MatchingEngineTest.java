@@ -19,10 +19,10 @@ class MatchingEngineTest {
     void testSerialExactMatch() {
         // 串号精确匹配
         MatchingEngine.LostItem lost = new MatchingEngine.LostItem(
-                "证件", null, null, null, null, null, null, "320111199001011234", LocalDateTime.now()
+                "证件", null, null, null, null, null, "320111199001011234", LocalDateTime.now()
         );
         MatchingEngine.FoundItem found = new MatchingEngine.FoundItem(
-                "证件", null, null, null, null, null, null, "320111199001011234", LocalDateTime.now()
+                "证件", null, null, null, null, null, "320111199001011234", LocalDateTime.now()
         );
 
         BigDecimal score = engine.calculateScore(lost, found);
@@ -33,11 +33,11 @@ class MatchingEngineTest {
     void testWeightedMatch() {
         // 加权匹配 - 相同属性
         MatchingEngine.LostItem lost = new MatchingEngine.LostItem(
-                "电子产品", 1L, "A教学楼一层大厅", "iPhone", "黑色",
+                "电子产品", "A教学楼一层大厅", "iPhone", "黑色",
                 "丢失 iPhone", "在A教学楼一层大厅丢失黑色iPhone", "SN123456", LocalDateTime.now()
         );
         MatchingEngine.FoundItem found = new MatchingEngine.FoundItem(
-                "电子产品", 1L, "A教学楼一层大厅", "iPhone", "黑色",
+                "电子产品", "A教学楼一层大厅", "iPhone", "黑色",
                 "捡到 iPhone", "在A教学楼一层大厅捡到黑色iPhone", null, LocalDateTime.now()
         );
 
@@ -49,11 +49,11 @@ class MatchingEngineTest {
     void testNoMatch() {
         // 不匹配
         MatchingEngine.LostItem lost = new MatchingEngine.LostItem(
-                "电子产品", 1L, "A教学楼一层大厅", "iPhone", "黑色",
+                "电子产品", "A教学楼一层大厅", "iPhone", "黑色",
                 "丢失 iPhone", "在A教学楼一层大厅丢失黑色iPhone", null, LocalDateTime.now().minusDays(30)
         );
         MatchingEngine.FoundItem found = new MatchingEngine.FoundItem(
-                "书籍", 2L, "图书馆一楼自习室", "Nike", "红色",
+                "书籍", "图书馆一楼自习室", "Nike", "红色",
                 "捡到 高等数学", "在图书馆捡到一本高数教材", null, LocalDateTime.now()
         );
 

@@ -22,6 +22,9 @@ import com.campus.lostfound.modules.match.repository.MatchRepository;
 import com.campus.lostfound.modules.notification.entity.Notification;
 import com.campus.lostfound.modules.notification.repository.NotificationRepository;
 import com.campus.lostfound.modules.item.service.ItemService;
+import com.campus.lostfound.modules.system.entity.User;
+import com.campus.lostfound.modules.system.repository.UserRepository;
+import com.campus.lostfound.common.constant.UserConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +54,7 @@ public class ItemServiceImpl implements ItemService {
     private final MatchRepository matchRepository;
     private final ItemCompletionRequestRepository completionRequestRepository;
     private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
     private final JdbcTemplate jdbcTemplate;
     private final RedisCacheService cacheService;
     private final ObjectMapper objectMapper;
@@ -62,6 +66,7 @@ public class ItemServiceImpl implements ItemService {
                            MatchRepository matchRepository,
                            ItemCompletionRequestRepository completionRequestRepository,
                            NotificationRepository notificationRepository,
+                           UserRepository userRepository,
                            JdbcTemplate jdbcTemplate,
                            RedisCacheService cacheService,
                            ObjectMapper objectMapper,
@@ -72,6 +77,7 @@ public class ItemServiceImpl implements ItemService {
         this.matchRepository = matchRepository;
         this.completionRequestRepository = completionRequestRepository;
         this.notificationRepository = notificationRepository;
+        this.userRepository = userRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.cacheService = cacheService;
         this.objectMapper = objectMapper;
@@ -88,7 +94,6 @@ public class ItemServiceImpl implements ItemService {
         item.setType(request.getType());
         item.setCategory(request.getCategory());
         item.setLocation(request.getLocation());
-        item.setLocationId(request.getLocationId());
         item.setLostTime(request.getLostTime());
         item.setFoundTime(request.getFoundTime());
         item.setBrand(request.getBrand());
@@ -104,6 +109,14 @@ public class ItemServiceImpl implements ItemService {
         itemRepository.insert(item);
         saveImages(item.getId(), request.getImages());
         item.setImages(normalizeImageUrls(request.getImages()));
+
+        // 向所有管理员发送审核提醒通知
+        try {
+            notifyAdminsForPendingItem(item);
+        } catch (Exception e) {
+            log.error("发送管理员审核提醒失败: itemId={}", item.getId(), e);
+        }
+
         return item;
     }
 
@@ -126,7 +139,6 @@ public class ItemServiceImpl implements ItemService {
         item.setDescription(request.getDescription());
         item.setCategory(request.getCategory());
         item.setLocation(request.getLocation());
-        item.setLocationId(request.getLocationId());
         item.setLostTime(request.getLostTime());
         item.setFoundTime(request.getFoundTime());
         item.setBrand(request.getBrand());
@@ -184,9 +196,6 @@ public class ItemServiceImpl implements ItemService {
         }
         if (request.getCategory() != null) {
             wrapper.eq("category", request.getCategory());
-        }
-        if (request.getLocationId() != null) {
-            wrapper.eq("location_id", request.getLocationId());
         }
         if (request.getUserId() != null) {
             wrapper.eq("user_id", request.getUserId());
@@ -381,6 +390,12 @@ public class ItemServiceImpl implements ItemService {
         }
 
         List<Long> itemIds = items.stream().map(Item::getId).toList();
+        List<Long> userIds = items.stream().map(Item::getUserId).distinct().toList();
+
+        LambdaQueryWrapper<User> userWrapper = new LambdaQueryWrapper<>();
+        userWrapper.in(User::getId, userIds);
+        Map<Long, String> userNameMap = userRepository.selectList(userWrapper).stream()
+                .collect(Collectors.toMap(User::getId, User::getUsername));
 
         LambdaQueryWrapper<ItemImage> imageWrapper = new LambdaQueryWrapper<>();
         imageWrapper.in(ItemImage::getItemId, itemIds).orderByAsc(ItemImage::getSortOrder);
@@ -425,6 +440,7 @@ public class ItemServiceImpl implements ItemService {
             item.setImages(new ArrayList<>(imageMap.getOrDefault(item.getId(), List.of())));
             item.setHighConfidenceMatched(Boolean.TRUE.equals(matchedMap.get(item.getId())));
             item.setPotentialOwnerNotified(Boolean.TRUE.equals(potentialOwnerNotifiedMap.get(item.getId())));
+            item.setUsername(userNameMap.get(item.getUserId()));
             ItemCompletionRequest request = completionMap.get(item.getId());
             if (request != null) {
                 item.setPendingCompletionStatus(request.getStatus());
@@ -434,5 +450,43 @@ public class ItemServiceImpl implements ItemService {
                 item.setPendingCompletionTargetStatus(null);
             }
         }
+    }
+
+    /**
+     * 向所有管理员发送物品待审核通知
+     */
+    private void notifyAdminsForPendingItem(Item item) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(User::getRole, UserConstants.ROLE_SUPER_ADMIN, UserConstants.ROLE_CAMPUS_ADMIN);
+        List<User> admins = userRepository.selectList(wrapper);
+
+        if (admins.isEmpty()) {
+            log.warn("没有找到管理员，无法发送审核提醒通知");
+            return;
+        }
+
+        String typeText = ItemConstants.Type.LOST.equals(item.getType()) ? "寻物" : "招领";
+        String title = "新物品待审核";
+        String content = String.format(
+                "用户发布了一条新的%s信息【%s】，请及时审核。",
+                typeText,
+                item.getTitle()
+        );
+
+        for (User admin : admins) {
+            try {
+                notificationService.create(
+                        admin.getId(),
+                        ItemConstants.NotificationType.ITEM_PENDING,
+                        title,
+                        content,
+                        item.getId()
+                );
+            } catch (Exception e) {
+                log.error("发送审核提醒通知失败: adminId={}, itemId={}", admin.getId(), item.getId(), e);
+            }
+        }
+
+        log.info("已向 {} 位管理员发送物品审核提醒通知: itemId={}", admins.size(), item.getId());
     }
 }
