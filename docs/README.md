@@ -24,11 +24,8 @@
 ├── frontend/                         # Vue 3 + Vite 前端（端口 3000）
 ├── docs/                             # 设计与说明文档
 │   └── sql/                          # 数据库脚本
-│       ├── schema.sql                # 建表脚本
-│       ├── data.sql                  # 初始化数据
-│       ├── phase9_migration.sql      # 旧库升级
-│       ├── phase10_remove_reward.sql # 旧库升级
-│       └── phase17_email_unique.sql  # 邮箱唯一约束 + 脏数据清理
+│       ├── schema.sql                # 建表脚本（包含所有表结构）
+│       └── data.sql                  # 初始化数据（位置、用户、物品示例数据）
 ├── pom.xml                           # Maven 父 POM
 └── start-*.bat                       # 启动脚本
 ```
@@ -122,9 +119,8 @@ sequenceDiagram
 | system | 登录注册、个人中心、用户管理、实名认证 |
 | item | 物品 CRUD、位置管理、图片上传、完成申请 |
 | match | 智能匹配、匹配确认/拒绝、证件失主通知 |
-| review | 物品审核、认领审核、完成申请审核 |
 | notification | 站内通知、邮件提醒 |
-| statistics | 首页统计、后台报表 |
+| statistics | 首页公开统计、后台报表 |
 
 ## 物品业务流程
 
