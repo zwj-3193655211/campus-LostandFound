@@ -50,10 +50,7 @@ public class ItemCreateRequest {
     private String contactInfo;
 
     @Size(max = 6, message = "最多上传6张图片")
-    private List<
-            @NotBlank(message = "图片地址不能为空")
-            @Size(max = 255, message = "图片地址过长")
-            String> images;
+    private List<String> images;
 
     public String getType() {
         return type;

@@ -155,10 +155,6 @@
                 <span>添加图片</span>
               </div>
             </el-upload>
-            <div class="upload-tip">
-              <el-icon class="tip-icon"><InfoFilled /></el-icon>
-              图片上传到图床，默认使用 R2 存储；最多 6 张。
-            </div>
           </el-form-item>
         </div>
 
@@ -293,13 +289,13 @@ const handleSubmit = async () => {
       category: form.category,
       description: form.description,
       location: form.location,
-      lostTime: isLost.value ? form.time : null,
-      foundTime: isLost.value ? null : form.time,
+      lostTime: isLost.value && form.time ? form.time.replace('T', ' ') : null,
+      foundTime: !isLost.value && form.time ? form.time.replace('T', ' ') : null,
       brand: form.brand,
       color: form.color,
       serialNumber: form.serialNumber,
       contactInfo: form.contactInfo,
-      images: form.imageUrls
+      images: form.imageUrls || []
     }
 
     if (isEditMode.value && editingItemId.value) {

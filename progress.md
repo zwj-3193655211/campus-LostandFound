@@ -45,7 +45,7 @@
 - 第九轮已按确认后的需求重构状态流：`已匹配` 改为高分匹配派生标签，阈值固定 `80%`；审核拒绝改为独立状态 `REJECTED`。
 - 第九轮已新增 `item_completion_requests` 完成状态申请链路，支持用户提交“已找到 / 已归还”申请并由管理员审核生效。
 - 第九轮已补真实待审核物品接口、审核通过后自动匹配、认领申请入口、完成申请审核接口和通知类型枚举同步。
-- 第九轮已接入图床代理上传接口 `/api/uploads/images`，默认上传到 `r2`；发布页可上传图片，后端会持久化 `item_images` 并在详情/卡片展示。
+- 第九轮已接入本地文件存储上传接口 `/api/uploads/images`，图片保存到 `./uploads/yyyy/MM/` 目录；发布页可上传图片，后端会持久化 `item_images` 并在详情/卡片展示。
 - 第九轮已扩展后端搜索字段，并修复前端列表页搜索/翻页的重复请求问题。
 - 第九轮验证结果：执行 `frontend` 的 `npm run build` 通过；执行 `backend` 的 `mvn -Dtest=WebSecurityConfigTest,JwtSecurityIntegrationTest,ItemServiceImplTest,VerificationServiceImplTest test` 通过；执行 `backend` 的 `mvn test` 通过。
 - 第十轮已新增 `docs/sql/phase9_migration.sql`，为已存在的 MySQL 库提供显式升级脚本，覆盖状态枚举、通知类型和 `item_completion_requests` 表。
@@ -59,8 +59,8 @@
 - 第十二轮已收紧 `DbFixController`：增加 `app.db-fix-enabled` 条件装配，默认不开启；并修复异常分支返回 `ApiResponse.error(...)`。
 - 第十二轮定位到条件装配属性名回归：原实现使用 `app.db-fix.enabled`，导致测试环境即使开启配置也不会注册控制器；现已修正并通过权限测试验证。
 - 第十二轮已为 `DbFixController` 补失败分支测试，确保数据库修表异常时返回错误响应而不是伪成功。
-- 第十二轮已新增 `HttpClientConfig`，统一注入带超时的 `RestTemplate`；`ImageUploadServiceImpl` 已补 10MB 限制、MIME/扩展名白名单和图床 URL 校验。
-- 第十二轮已新增 `ImageUploadServiceImplTest`，覆盖空文件、超大文件、非法类型、图床失败和成功上传五类关键分支。
+- 第十二轮已新增 `LocalImageUploadServiceImpl`，实现本地文件存储，支持 10MB 限制、MIME/扩展名白名单、日期子目录管理。
+- 第十二轮已删除旧的远程图床服务实现，移除对外部图床的依赖。
 - 第十二轮验证结果：执行 `backend` 的 `mvn "-Dtest=WebSecurityConfigTest,ImageUploadServiceImplTest" test` 通过；执行 `backend` 的 `mvn test` 通过；执行 `backend` 的 `mvn -DskipTests package` 通过。
 - 第十三轮已新增 `DbFixControllerConditionalTest`，验证 `app.db-fix-enabled` 关闭时不注册、开启时才注册 `DbFixController`。
 - 第十三轮已扩展 `VerificationServiceImplTest`，补充重复审核拦截与通知失败兜底测试。

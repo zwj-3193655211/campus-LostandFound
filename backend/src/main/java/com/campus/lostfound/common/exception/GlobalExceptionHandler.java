@@ -61,7 +61,7 @@ public class GlobalExceptionHandler {
                 : e.getMessage();
         String message = rawMessage != null && rawMessage.contains("LocalDateTime")
                 ? "时间格式不正确，请使用 yyyy-MM-dd HH:mm:ss"
-                : "请求体格式不正确";
+                : "请求体格式不正确: " + rawMessage;
         log.error("请求体解析异常: {}", rawMessage);
         return ApiResponse.error(400, message);
     }

@@ -1,6 +1,4 @@
 package com.campus.lostfound.modules.item.service.impl;
-
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.campus.lostfound.common.constant.ItemConstants;
 import com.campus.lostfound.common.exception.BusinessException;
 import com.campus.lostfound.modules.common.service.RedisCacheService;

@@ -80,10 +80,9 @@ app:
     email-verification-required: false
 
 image-bed:
-  upload-url: https://img.scdn.io/api/v1.php
-  storage-destination: r2
-  output-format: auto
-  cdn-domain: ""
+  # 本地文件存储配置
+  local-upload-path: ./uploads
+  # 图片访问基础路径 (前端通过代理访问 /api/uploads/images/**)
 
 logging:
   level:

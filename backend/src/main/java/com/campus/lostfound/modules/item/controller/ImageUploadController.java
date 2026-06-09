@@ -2,6 +2,7 @@ package com.campus.lostfound.modules.item.controller;
 
 import com.campus.lostfound.common.result.ApiResponse;
 import com.campus.lostfound.modules.item.service.ImageUploadService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,7 +17,7 @@ public class ImageUploadController {
 
     private final ImageUploadService imageUploadService;
 
-    public ImageUploadController(ImageUploadService imageUploadService) {
+    public ImageUploadController(@Qualifier("localImageUploadService") ImageUploadService imageUploadService) {
         this.imageUploadService = imageUploadService;
     }
 

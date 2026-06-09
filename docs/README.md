@@ -14,7 +14,7 @@
 | 认证授权 | Sa-Token + Spring Security + JJWT | 三件套协作鉴权 |
 | 文档 | SpringDoc OpenAPI 2.2.0 | Swagger UI |
 | 邮件 | Jakarta Mail | 匹配通知/审核结果邮件 |
-| 图床 | 外部图床 HTTP API | 无本地存储 |
+| 文件存储 | 本地文件系统 | 图片存储于服务器本地 |
 
 ## 项目结构
 
@@ -82,7 +82,7 @@ graph TD
     MATCH --> DB
     NOTIFY --> DB
     STAT -.-> REDIS[(Redis)]
-    ITEM --> IMG[图床 API]
+    ITEM --> LOCAL[本地文件存储]
     NOTIFY --> MAIL[SMTP 邮件]
 ```
 

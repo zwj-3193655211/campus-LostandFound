@@ -109,7 +109,7 @@
 - 已新增用户完成申请接口与管理员审核接口，并在前端 `MyItems` / `ItemDetail` / `AdminDashboard` 中补齐提交、展示和审核交互。
 - 已补认领申请入口 `/api/items/{id}/claim`，详情页不再只弹联系方式，而是允许登录用户提交认领说明。
 - 已修复通知类型与数据库枚举不一致的问题：通知类型已纳入 `CLAIM_REVIEW_RESULT`、`COMPLETION_REVIEW_RESULT`，避免运行时写库失败。
-- 已打通图片链路：后端新增图床代理上传接口 `/api/uploads/images`，默认上传到 `r2`；发布页支持真实上传，物品创建/编辑会持久化到 `item_images`，列表卡片与详情页可展示图片。
+- 已打通图片链路：后端新增本地文件存储上传接口 `/api/uploads/images`，图片保存到 `./uploads/yyyy/MM/` 目录；发布页支持真实上传，物品创建/编辑会持久化到 `item_images`，列表卡片与详情页可展示图片。
 - 已为无图片的示例数据增加前端占位图展示，避免示例物品普遍落到“暂无图片”或外链失效。
 
 ## 当前仍建议继续处理的问题
@@ -149,8 +149,8 @@
 - 已修复条件装配键名错误：原实现写成 `app.db-fix.enabled`，导致测试环境即使配置开启也不会注册控制器；现已改为 `prefix = "app", name = "db-fix-enabled"`。
 - 已为 `DbFixController` 增补失败分支测试：数据库修表异常时不再伪装成成功，而是返回 `ApiResponse.error(...)`。
 - 已新增 [`HttpClientConfig.java`](file:///d:/SpringProjectReport/校园失物招领平台/backend/src/main/java/com/campus/lostfound/config/HttpClientConfig.java)，统一提供带超时的 `RestTemplate`，并让上传服务可注入、可测试。
-- 已增强 [`ImageUploadServiceImpl`](file:///d:/SpringProjectReport/校园失物招领平台/backend/src/main/java/com/campus/lostfound/modules/item/service/impl/ImageUploadServiceImpl.java) 的安全校验，补齐 10MB 限制、MIME 白名单、扩展名白名单、图床返回 URL 校验与远端错误兜底。
-- 已新增 [`ImageUploadServiceImplTest`](file:///d:/SpringProjectReport/校园失物招领平台/backend/src/test/java/com/campus/lostfound/modules/item/service/ImageUploadServiceImplTest.java)，覆盖空文件、超大文件、非法类型、图床失败、成功返回。
+- 已新增 [`LocalImageUploadServiceImpl.java`](file:///d:/SpringProjectReport/校园失物招领平台/backend/src/main/java/com/campus/lostfound/modules/item/service/impl/LocalImageUploadServiceImpl.java)，实现本地文件存储，支持 10MB 限制、MIME/扩展名白名单、日期子目录管理。
+- 已删除旧的远程图床服务实现，移除对外部图床的依赖。
 - 本轮真实回归结果：`mvn "-Dtest=WebSecurityConfigTest,ImageUploadServiceImplTest" test` 通过，`mvn test` 通过，`mvn -DskipTests package` 通过。
 - 当前最高优先级风险已从“高危入口默认暴露、上传校验缺失”下降为“审核状态机测试不足”和“前端自动化测试缺失”。
 
