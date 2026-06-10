@@ -5,7 +5,7 @@
         <el-col :span="8">
           <el-input 
             v-model="searchKeyword" 
-            placeholder="搜索名称、描述、品牌、颜色、序列号或位置..." 
+            placeholder="搜索名称、描述、品牌、颜色、证件号或位置..." 
             class="search-input"
             @keyup.enter="handleSearch"
           >

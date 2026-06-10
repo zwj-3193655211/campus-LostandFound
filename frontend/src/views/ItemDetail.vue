@@ -74,7 +74,7 @@
             <span class="info-value">{{ item.color || '未填写' }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">序列号</span>
+            <span class="info-label">证件号</span>
             <span class="info-value">{{ item.serialNumber || '未填写' }}</span>
           </div>
         </div>

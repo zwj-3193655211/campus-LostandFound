@@ -87,10 +87,10 @@
           </el-form-item>
 
           <el-form-item prop="serialNumber" class="form-item">
-            <label class="form-label">序列号</label>
+            <label class="form-label">证件号</label>
             <div class="input-wrapper">
               <el-icon class="input-icon"><Key /></el-icon>
-              <el-input v-model="form.serialNumber" placeholder="如有序列号请填写" class="form-input" />
+              <el-input v-model="form.serialNumber" placeholder="如有证件号请填写" class="form-input" />
             </div>
             <div v-if="form.category === '证件'" class="field-tip">
               <el-icon class="tip-icon"><Notification /></el-icon>
