@@ -284,7 +284,7 @@ public class MatchingServiceImpl implements MatchingService {
     }
 
     @Override
-    public PageResponse<Match> getUserMatches(Long userId, int page, int pageSize) {
+    public PageResponse<Match> getUserMatches(Long userId, int page, int pageSize, String status) {
         LambdaQueryWrapper<Item> itemWrapper = new LambdaQueryWrapper<>();
         itemWrapper.eq(Item::getUserId, userId);
         List<Item> myItems = itemRepository.selectList(itemWrapper);
@@ -296,6 +296,10 @@ public class MatchingServiceImpl implements MatchingService {
         List<Long> itemIds = myItems.stream().map(Item::getId).toList();
         LambdaQueryWrapper<Match> wrapper = new LambdaQueryWrapper<>();
         wrapper.and(w -> w.in(Match::getLostItemId, itemIds).or().in(Match::getFoundItemId, itemIds));
+        // 如果有status筛选条件
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(Match::getStatus, status);
+        }
         // 按匹配度从高到低排序
         wrapper.orderByDesc(Match::getScore);
 

@@ -34,8 +34,12 @@ public interface MatchingService {
 
     /**
      * 获取用户可见的匹配列表
+     * @param userId 用户ID
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @param status 筛选状态（可选），如 PENDING/CONFIRMED/REJECTED
      */
-    PageResponse<Match> getUserMatches(Long userId, int page, int pageSize);
+    PageResponse<Match> getUserMatches(Long userId, int page, int pageSize, String status);
 
     /**
      * 确认匹配

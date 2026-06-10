@@ -33,10 +33,11 @@ public class MatchController {
             @RequestParam(name = "itemId", required = false) Long itemId,
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize,
+            @RequestParam(name = "status", required = false) String status,
             @AuthenticationPrincipal User user) {
         if (itemId == null) {
             // 所有用户（包括管理员）都只能看到自己相关的匹配
-            return ApiResponse.success(matchingService.getUserMatches(user.getId(), page, pageSize));
+            return ApiResponse.success(matchingService.getUserMatches(user.getId(), page, pageSize, status));
         }
 
         // 验证用户是否有权查看该物品的匹配
@@ -55,9 +56,10 @@ public class MatchController {
     public ApiResponse<PageResponse<Match>> recentList(
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize,
+            @RequestParam(name = "status", required = false) String status,
             @AuthenticationPrincipal User user) {
         // 所有用户（包括管理员）都只能看到自己相关的匹配
-        return ApiResponse.success(matchingService.getUserMatches(user.getId(), page, pageSize));
+        return ApiResponse.success(matchingService.getUserMatches(user.getId(), page, pageSize, status));
     }
 
     /**
