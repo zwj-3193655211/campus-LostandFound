@@ -7,7 +7,7 @@
 | 角色 | 说明 |
 |------|------|
 | SUPER_ADMIN | 超级管理员，拥有全部权限 |
-| CAMPUS_ADMIN | 校园管理员，管理物品审核、位置、统计等 |
+| CAMPUS_ADMIN | 校园管理员，管理物品审核、统计等 |
 | USER | 普通用户，使用基本功能 |
 
 ### 1.2 功能清单
@@ -227,7 +227,7 @@ PUT /api/matches/{id}/reject?reason=物品不符
 
 ---
 
-### 2.7 管理接口（管理员/SUPER_ADMIN）
+### 2.6 管理接口（管理员/SUPER_ADMIN）
 
 #### 用户管理 `/api/admin/users`
 

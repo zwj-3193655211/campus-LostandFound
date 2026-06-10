@@ -16,6 +16,7 @@ import jakarta.mail.internet.MimeMultipart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -42,6 +43,7 @@ public class MailServiceImpl implements MailService {
     private String baseUrl;
 
     @Override
+    @Async("mailExecutor")
     public void sendMatchNotificationEmail(
             String userEmail,
             String userName,
@@ -62,6 +64,7 @@ public class MailServiceImpl implements MailService {
     }
 
     @Override
+    @Async("mailExecutor")
     public void sendVerificationEmail(
             String userEmail,
             String userName,
@@ -97,6 +100,7 @@ public class MailServiceImpl implements MailService {
     }
 
     @Override
+    @Async("mailExecutor")
     public void sendSimpleEmail(String userEmail, String subject, String content) {
         try {
             sendHtmlEmail(userEmail, subject, "<p>" + escapeHtml(content) + "</p>");
