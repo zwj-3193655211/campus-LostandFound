@@ -336,6 +336,21 @@ public class MatchingServiceImpl implements MatchingService {
             itemRepository.updateById(foundItem);
         }
 
+        // 删除或拒绝其他涉及相同物品的待确认匹配
+        List<Long> itemIds = List.of(match.getLostItemId(), match.getFoundItemId());
+        LambdaQueryWrapper<Match> otherMatchWrapper = new LambdaQueryWrapper<>();
+        otherMatchWrapper.and(w -> w.in(Match::getLostItemId, itemIds).or().in(Match::getFoundItemId, itemIds));
+        otherMatchWrapper.eq(Match::getStatus, "PENDING");
+        otherMatchWrapper.ne(Match::getId, matchId); // 排除当前确认的匹配
+        
+        List<Match> otherMatches = matchRepository.selectList(otherMatchWrapper);
+        for (Match other : otherMatches) {
+            other.setStatus("REJECTED");
+            other.setUpdatedAt(LocalDateTime.now());
+            matchRepository.updateById(other);
+            log.info("自动拒绝与已确认匹配冲突的匹配: {}", other.getId());
+        }
+
         log.info("用户{} 确认匹配 {}", userId, matchId);
     }
 
