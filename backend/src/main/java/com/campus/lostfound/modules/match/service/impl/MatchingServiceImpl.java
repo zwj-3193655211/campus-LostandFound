@@ -77,6 +77,8 @@ public class MatchingServiceImpl implements MatchingService {
         wrapper.eq(Item::getType, targetType);
         wrapper.eq(Item::getStatus, itemStatus);
         wrapper.ne(Item::getId, item.getId());
+        // 排除已经有确认匹配的物品（match_item_id 不为空表示已匹配）
+        wrapper.isNull(Item::getMatchItemId);
 
         String serial = item.getSerialNumber();
         if (serial != null && !serial.isBlank()) {
@@ -101,7 +103,8 @@ public class MatchingServiceImpl implements MatchingService {
         return itemRepository.selectPage(page, wrapper).getRecords();
     }
 
-    private BigDecimal calculateScore(Item item1, Item item2) {
+    @Override
+    public BigDecimal calculateScore(Item item1, Item item2) {
         if (ItemConstants.Type.LOST.equals(item1.getType())) {
             MatchingEngine.LostItem lost = new MatchingEngine.LostItem(
                     item1.getCategory(),
@@ -293,7 +296,8 @@ public class MatchingServiceImpl implements MatchingService {
         List<Long> itemIds = myItems.stream().map(Item::getId).toList();
         LambdaQueryWrapper<Match> wrapper = new LambdaQueryWrapper<>();
         wrapper.and(w -> w.in(Match::getLostItemId, itemIds).or().in(Match::getFoundItemId, itemIds));
-        wrapper.orderByDesc(Match::getCreatedAt);
+        // 按匹配度从高到低排序
+        wrapper.orderByDesc(Match::getScore);
 
         Page<Match> result = matchRepository.selectPage(new Page<>(page, pageSize), wrapper);
         return PageResponse.of(enrichMatches(result.getRecords()), result.getTotal(), page, pageSize);
@@ -348,6 +352,60 @@ public class MatchingServiceImpl implements MatchingService {
         matchRepository.updateById(match);
 
         log.info("用户{} 拒绝匹配 {}: {}", userId, matchId, reason);
+    }
+
+    @Override
+    @Transactional
+    public void cancelMatch(Long matchId, Long userId) {
+        Match match = matchRepository.selectById(matchId);
+        if (match == null) {
+            throw new BusinessException("匹配记录不存在");
+        }
+
+        if (!"CONFIRMED".equals(match.getStatus())) {
+            throw new BusinessException("只能取消已确认的匹配");
+        }
+
+        Item lostItem = itemRepository.selectById(match.getLostItemId());
+        Item foundItem = itemRepository.selectById(match.getFoundItemId());
+        validateMatchOwnership(userId, lostItem, foundItem);
+
+        // 将匹配状态改为 REJECTED
+        match.setStatus("REJECTED");
+        match.setUpdatedAt(LocalDateTime.now());
+        matchRepository.updateById(match);
+
+        // 清除两个物品的匹配标记，使其可以被其他匹配
+        if (lostItem != null && foundItem.getId().equals(lostItem.getMatchItemId())) {
+            lostItem.setMatchItemId(null);
+            lostItem.setMatchScore(null);
+            lostItem.setUpdatedAt(LocalDateTime.now());
+            itemRepository.updateById(lostItem);
+        }
+        if (foundItem != null && lostItem.getId().equals(foundItem.getMatchItemId())) {
+            foundItem.setMatchItemId(null);
+            foundItem.setMatchScore(null);
+            foundItem.setUpdatedAt(LocalDateTime.now());
+            itemRepository.updateById(foundItem);
+        }
+
+        // 触发重新匹配，让这两个物品可以找到新的匹配
+        if (lostItem != null && "APPROVED".equals(lostItem.getStatus())) {
+            try {
+                match(lostItem.getId());
+            } catch (Exception e) {
+                log.warn("重新匹配 lostItem {} 失败", lostItem.getId(), e);
+            }
+        }
+        if (foundItem != null && "APPROVED".equals(foundItem.getStatus())) {
+            try {
+                match(foundItem.getId());
+            } catch (Exception e) {
+                log.warn("重新匹配 foundItem {} 失败", foundItem.getId(), e);
+            }
+        }
+
+        log.info("用户{} 取消匹配 {}", userId, matchId);
     }
 
     @Override

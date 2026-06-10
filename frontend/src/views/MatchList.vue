@@ -86,12 +86,29 @@
               拒绝匹配
             </el-button>
             <el-button 
-              @click="goDetail(match.lostItemId)" 
-              type="default" 
+              v-if="match.status === 'CONFIRMED'" 
+              @click="handleCancel(match.id)" 
+              type="warning" 
               size="small"
             >
-              查看详情
+              取消匹配
             </el-button>
+            <div class="detail-buttons">
+              <el-button 
+                @click="goDetail(match.lostItemId)" 
+                type="default" 
+                size="small"
+              >
+                查看寻物
+              </el-button>
+              <el-button 
+                @click="goDetail(match.foundItemId)" 
+                type="default" 
+                size="small"
+              >
+                查看招领
+              </el-button>
+            </div>
           </div>
         </div>
       </el-card>
@@ -229,6 +246,20 @@ const handleReject = async (matchId) => {
   } catch (error) {
     console.error('拒绝失败:', error)
     showError(error?.message || '匹配拒绝失败')
+  }
+}
+
+const handleCancel = async (matchId) => {
+  try {
+    await itemStore.cancelMatch(matchId)
+    const match = matches.value.find(m => m.id === matchId)
+    if (match) match.status = 'REJECTED'
+    showSuccess('匹配已取消，物品已恢复可匹配状态')
+    // 刷新匹配列表，显示新的匹配推荐
+    await fetchMatchList()
+  } catch (error) {
+    console.error('取消失败:', error)
+    showError(error?.message || '匹配取消失败')
   }
 }
 
@@ -372,6 +403,11 @@ onMounted(async () => {
 .actions {
   display: flex;
   gap: 8px;
+}
+
+.detail-buttons {
+  display: flex;
+  gap: 6px;
 }
 
 .empty-state {

@@ -78,7 +78,10 @@ public class WebSecurityConfig {
                         .hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN")
                         .requestMatchers("/api/users/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/items/**").permitAll()
-                        .requestMatchers("/api/items/**").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN", "USER")
+                        // POST/PUT/DELETE 需要认证
+                        .requestMatchers(HttpMethod.POST, "/api/items/**").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN", "USER")
+                        .requestMatchers(HttpMethod.PUT, "/api/items/**").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN", "USER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/items/**").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN", "USER")
                         .requestMatchers(HttpMethod.POST, "/api/uploads/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/uploads/images/**").permitAll()
                         .requestMatchers("/api/matches/**").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN", "USER")

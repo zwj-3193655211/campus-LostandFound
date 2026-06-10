@@ -1,5 +1,16 @@
 import axios from 'axios'
 
+// 公开接口列表，不需要认证即可访问
+const publicEndpoints = [
+  '/items',
+  '/statistics',
+  '/uploads/images'
+]
+
+export function isPublicEndpoint(url) {
+  return publicEndpoints.some(endpoint => url?.startsWith(endpoint))
+}
+
 export function defaultOnUnauthorized() {
   localStorage.removeItem('token')
   localStorage.removeItem('refreshToken')
@@ -63,6 +74,13 @@ export function createApiClient(options = {}) {
     async error => {
       const originalRequest = error.config
       const status = error.response?.status
+
+      // 如果是公开接口（如物品列表），对于401错误不触发刷新token，直接返回错误
+      if (status === 401 && originalRequest && isPublicEndpoint(originalRequest.url)) {
+        const err = new Error(error.response?.data?.message || '请求失败')
+        err.code = 401
+        return Promise.reject(err)
+      }
 
       if (status === 401 && originalRequest && !originalRequest._retry) {
         if (isRefreshing) {

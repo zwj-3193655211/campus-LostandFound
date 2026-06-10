@@ -8,6 +8,7 @@ import com.campus.lostfound.modules.item.entity.Item;
 
 import java.util.List;
 
+
 /**
  * 失物服务接口
  */
@@ -73,4 +74,9 @@ public interface ItemService {
      */
     com.campus.lostfound.common.result.PageResponse<Item> adminListByStatus(
             String status, int page, int pageSize);
+
+    /**
+     * 获取与指定物品相关的物品列表（按匹配度排序）
+     */
+    List<Item> getRelatedItems(Long itemId, int limit);
 }

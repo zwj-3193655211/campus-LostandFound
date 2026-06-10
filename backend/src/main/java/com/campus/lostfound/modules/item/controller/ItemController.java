@@ -90,6 +90,17 @@ public class ItemController {
     }
 
     /**
+     * 获取相关物品（按匹配度排序）
+     */
+    @GetMapping("/{id}/related")
+    public ApiResponse<List<Item>> getRelatedItems(@PathVariable Long id,
+                                                   @RequestParam(value = "limit", defaultValue = "3") Integer limit,
+                                                   @AuthenticationPrincipal User user) {
+        List<Item> relatedItems = itemService.getRelatedItems(id, limit);
+        return ApiResponse.success(toPublicItems(relatedItems, user));
+    }
+
+    /**
      * 分页查询失物
      */
     @GetMapping

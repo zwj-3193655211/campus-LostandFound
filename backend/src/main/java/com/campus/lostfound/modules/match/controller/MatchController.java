@@ -35,17 +35,14 @@ public class MatchController {
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize,
             @AuthenticationPrincipal User user) {
         if (itemId == null) {
-            if (isAdmin(user)) {
-                return ApiResponse.success(matchingService.getAllMatches(page, pageSize));
-            }
+            // 所有用户（包括管理员）都只能看到自己相关的匹配
             return ApiResponse.success(matchingService.getUserMatches(user.getId(), page, pageSize));
         }
 
-        if (!isAdmin(user)) {
-            Item item = itemRepository.selectById(itemId);
-            if (item == null || !user.getId().equals(item.getUserId())) {
-                return ApiResponse.error(403, "无权查看该物品的匹配记录");
-            }
+        // 验证用户是否有权查看该物品的匹配
+        Item item = itemRepository.selectById(itemId);
+        if (item == null || !user.getId().equals(item.getUserId())) {
+            return ApiResponse.error(403, "无权查看该物品的匹配记录");
         }
 
         return ApiResponse.success(matchingService.getMatches(itemId, page, pageSize));
@@ -59,9 +56,7 @@ public class MatchController {
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize,
             @AuthenticationPrincipal User user) {
-        if (isAdmin(user)) {
-            return ApiResponse.success(matchingService.getAllMatches(page, pageSize));
-        }
+        // 所有用户（包括管理员）都只能看到自己相关的匹配
         return ApiResponse.success(matchingService.getUserMatches(user.getId(), page, pageSize));
     }
 
@@ -75,7 +70,7 @@ public class MatchController {
     }
 
     /**
-     * 拒绝匹配
+     * 拒绝匹配（待确认状态）
      */
     @PutMapping("/{id}/reject")
     public ApiResponse<Void> reject(@PathVariable Long id,
@@ -83,6 +78,16 @@ public class MatchController {
                                    @AuthenticationPrincipal User user) {
         matchingService.rejectMatch(id, user.getId(), reason);
         return ApiResponse.success("已拒绝", null);
+    }
+
+    /**
+     * 取消匹配（已确认状态，恢复物品可被其他匹配）
+     */
+    @PutMapping("/{id}/cancel")
+    public ApiResponse<Void> cancel(@PathVariable Long id,
+                                   @AuthenticationPrincipal User user) {
+        matchingService.cancelMatch(id, user.getId());
+        return ApiResponse.success("匹配已取消，物品已恢复可匹配状态", null);
     }
 
     /**

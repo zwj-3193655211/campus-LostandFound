@@ -19,6 +19,7 @@ import com.campus.lostfound.modules.item.repository.ItemImageRepository;
 import com.campus.lostfound.modules.item.repository.ItemRepository;
 import com.campus.lostfound.modules.match.entity.Match;
 import com.campus.lostfound.modules.match.repository.MatchRepository;
+import com.campus.lostfound.modules.match.service.MatchingService;
 import com.campus.lostfound.modules.notification.entity.Notification;
 import com.campus.lostfound.modules.notification.repository.NotificationRepository;
 import com.campus.lostfound.modules.item.service.ItemService;
@@ -32,6 +33,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -215,10 +217,10 @@ public class ItemServiceImpl implements ItemService {
                     .or().like("location", request.getKeyword()));
         }
         if (request.getStartTime() != null) {
-            wrapper.and(w -> w.ge("lost_time", request.getStartTime()).or().ge("found_time", request.getStartTime()));
+            wrapper.ge("created_at", request.getStartTime());
         }
         if (request.getEndTime() != null) {
-            wrapper.and(w -> w.le("lost_time", request.getEndTime()).or().le("found_time", request.getEndTime()));
+            wrapper.le("created_at", request.getEndTime());
         }
 
         wrapper.orderByDesc("created_at");
@@ -489,4 +491,56 @@ public class ItemServiceImpl implements ItemService {
 
         log.info("已向 {} 位管理员发送物品审核提醒通知: itemId={}", admins.size(), item.getId());
     }
+
+    @Override
+    public List<Item> getRelatedItems(Long itemId, int limit) {
+        Item item = itemRepository.selectById(itemId);
+        if (item == null) {
+            return new ArrayList<>();
+        }
+
+        String targetType = ItemConstants.Type.LOST.equals(item.getType()) 
+                ? ItemConstants.Type.FOUND 
+                : ItemConstants.Type.LOST;
+
+        LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Item::getType, targetType);
+        wrapper.eq(Item::getStatus, ItemConstants.Status.APPROVED);
+        wrapper.ne(Item::getId, itemId);
+
+        List<Item> candidates = itemRepository.selectList(wrapper);
+        if (candidates.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<ScoredItem> scoredItems = new ArrayList<>();
+        for (Item candidate : candidates) {
+            BigDecimal score = calculateMatchScore(item, candidate);
+            if (score != null && score.compareTo(BigDecimal.ZERO) > 0) {
+                scoredItems.add(new ScoredItem(candidate, score));
+            }
+        }
+
+        scoredItems.sort(Comparator.comparing(ScoredItem::score).reversed());
+
+        int resultLimit = Math.min(limit, scoredItems.size());
+        List<Item> result = scoredItems.stream()
+                .limit(resultLimit)
+                .map(ScoredItem::item)
+                .toList();
+
+        enrichItems(result);
+        return result;
+    }
+
+    private BigDecimal calculateMatchScore(Item item1, Item item2) {
+        try {
+            return matchingService.calculateScore(item1, item2);
+        } catch (Exception e) {
+            log.warn("计算匹配分数失败: item1={}, item2={}", item1.getId(), item2.getId(), e);
+            return BigDecimal.ZERO;
+        }
+    }
+
+    private record ScoredItem(Item item, BigDecimal score) {}
 }

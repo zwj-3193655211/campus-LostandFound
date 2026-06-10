@@ -262,13 +262,8 @@ const goBack = () => {
 const loadItem = async (itemId) => {
   try {
     item.value = await itemStore.fetchItem(itemId)
-
-    const params = {
-      type: item.value?.type === 'LOST' ? 'FOUND' : 'LOST',
-      category: item.value?.category
-    }
-    const result = await itemStore.fetchItems(params)
-    relatedItems.value = result?.records?.slice(0, 3) || []
+    // 使用新接口获取按匹配度排序的相关物品
+    relatedItems.value = await itemStore.fetchRelatedItems(itemId)
   } catch (error) {
     console.error('获取物品详情失败:', error)
     showError(typeof error === 'string' ? error : (error?.message || '获取物品详情失败'))

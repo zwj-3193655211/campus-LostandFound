@@ -94,6 +94,11 @@ export const useItemStore = defineStore('item', {
       return pageData
     },
 
+    async fetchRelatedItems(itemId) {
+      const items = await axios.get(`/items/${itemId}/related`, { params: { limit: 3 } })
+      return items || []
+    },
+
 
 
     async submitCompletionRequest(itemId, data) {
@@ -108,6 +113,10 @@ export const useItemStore = defineStore('item', {
       return await axios.put(`/matches/${matchId}/reject`, null, {
         params: { reason }
       })
+    },
+
+    async cancelMatch(matchId) {
+      return await axios.put(`/matches/${matchId}/cancel`)
     },
 
     async fetchDashboardStats() {
