@@ -381,50 +381,55 @@ public class MatchingServiceImpl implements MatchingService {
             throw new BusinessException("匹配记录不存在");
         }
 
-        if (!"CONFIRMED".equals(match.getStatus())) {
-            throw new BusinessException("只能取消已确认的匹配");
-        }
-
         Item lostItem = itemRepository.selectById(match.getLostItemId());
         Item foundItem = itemRepository.selectById(match.getFoundItemId());
         validateMatchOwnership(userId, lostItem, foundItem);
 
-        // 将匹配状态改为 REJECTED
-        match.setStatus("REJECTED");
-        match.setUpdatedAt(LocalDateTime.now());
-        matchRepository.updateById(match);
+        if ("CONFIRMED".equals(match.getStatus())) {
+            // 由匹配态取消：触发新匹配（确认时会清理其他匹配，所以需要重新生成）
+            match.setStatus("PENDING");
+            match.setUpdatedAt(LocalDateTime.now());
+            matchRepository.updateById(match);
 
-        // 清除两个物品的匹配标记，使其可以被其他匹配
-        if (lostItem != null && foundItem.getId().equals(lostItem.getMatchItemId())) {
-            lostItem.setMatchItemId(null);
-            lostItem.setMatchScore(null);
-            lostItem.setUpdatedAt(LocalDateTime.now());
-            itemRepository.updateById(lostItem);
-        }
-        if (foundItem != null && lostItem.getId().equals(foundItem.getMatchItemId())) {
-            foundItem.setMatchItemId(null);
-            foundItem.setMatchScore(null);
-            foundItem.setUpdatedAt(LocalDateTime.now());
-            itemRepository.updateById(foundItem);
-        }
-
-        // 触发重新匹配，让这两个物品可以找到新的匹配
-        if (lostItem != null && "APPROVED".equals(lostItem.getStatus())) {
-            try {
-                match(lostItem.getId());
-            } catch (Exception e) {
-                log.warn("重新匹配 lostItem {} 失败", lostItem.getId(), e);
+            // 清除两个物品的匹配标记，使其可以被其他匹配
+            if (lostItem != null && foundItem.getId().equals(lostItem.getMatchItemId())) {
+                lostItem.setMatchItemId(null);
+                lostItem.setMatchScore(null);
+                lostItem.setUpdatedAt(LocalDateTime.now());
+                itemRepository.updateById(lostItem);
             }
-        }
-        if (foundItem != null && "APPROVED".equals(foundItem.getStatus())) {
-            try {
-                match(foundItem.getId());
-            } catch (Exception e) {
-                log.warn("重新匹配 foundItem {} 失败", foundItem.getId(), e);
+            if (foundItem != null && lostItem.getId().equals(foundItem.getMatchItemId())) {
+                foundItem.setMatchItemId(null);
+                foundItem.setMatchScore(null);
+                foundItem.setUpdatedAt(LocalDateTime.now());
+                itemRepository.updateById(foundItem);
             }
-        }
 
-        log.info("用户{} 取消匹配 {}", userId, matchId);
+            // 触发重新匹配
+            if (lostItem != null && "APPROVED".equals(lostItem.getStatus())) {
+                try {
+                    match(lostItem.getId());
+                } catch (Exception e) {
+                    log.warn("重新匹配 lostItem {} 失败", lostItem.getId(), e);
+                }
+            }
+            if (foundItem != null && "APPROVED".equals(foundItem.getStatus())) {
+                try {
+                    match(foundItem.getId());
+                } catch (Exception e) {
+                    log.warn("重新匹配 foundItem {} 失败", foundItem.getId(), e);
+                }
+            }
+            log.info("用户{} 取消匹配（重新触发匹配） {}", userId, matchId);
+        } else if ("REJECTED".equals(match.getStatus())) {
+            // 由拒绝态取消：只改状态为待确认，不触发新匹配
+            match.setStatus("PENDING");
+            match.setUpdatedAt(LocalDateTime.now());
+            matchRepository.updateById(match);
+            log.info("用户{} 取消拒绝（恢复为待确认） {}", userId, matchId);
+        } else {
+            throw new BusinessException("只能取消已确认或已拒绝的匹配");
+        }
     }
 
     @Override

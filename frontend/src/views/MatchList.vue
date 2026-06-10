@@ -86,12 +86,12 @@
               拒绝匹配
             </el-button>
             <el-button 
-              v-if="match.status === 'CONFIRMED'" 
+              v-if="match.status === 'CONFIRMED' || match.status === 'REJECTED'" 
               @click="handleCancel(match.id)" 
               type="warning" 
               size="small"
             >
-              取消匹配
+              {{ match.status === 'CONFIRMED' ? '取消匹配' : '恢复匹配' }}
             </el-button>
             <div class="detail-buttons">
               <el-button 
@@ -253,13 +253,18 @@ const handleCancel = async (matchId) => {
   try {
     await itemStore.cancelMatch(matchId)
     const match = matches.value.find(m => m.id === matchId)
-    if (match) match.status = 'REJECTED'
-    showSuccess('匹配已取消，物品已恢复可匹配状态')
-    // 刷新匹配列表，显示新的匹配推荐
-    await fetchMatchList()
+    if (match) {
+      if (match.status === 'CONFIRMED') {
+        showSuccess('匹配已取消，物品已恢复可匹配状态，正在重新匹配...')
+        await fetchMatchList()
+      } else {
+        match.status = 'PENDING'
+        showSuccess('已恢复为待确认状态')
+      }
+    }
   } catch (error) {
     console.error('取消失败:', error)
-    showError(error?.message || '匹配取消失败')
+    showError(error?.message || '操作失败')
   }
 }
 
