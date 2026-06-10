@@ -314,6 +314,9 @@ public class MatchingServiceImpl implements MatchingService {
         if (match == null) {
             throw new BusinessException("匹配记录不存在");
         }
+        if (!"PENDING".equals(match.getStatus())) {
+            throw new BusinessException("只有待确认的匹配才能确认");
+        }
 
         Item lostItem = itemRepository.selectById(match.getLostItemId());
         Item foundItem = itemRepository.selectById(match.getFoundItemId());
@@ -336,19 +339,18 @@ public class MatchingServiceImpl implements MatchingService {
             itemRepository.updateById(foundItem);
         }
 
-        // 删除或拒绝其他涉及相同物品的待确认匹配
+        // 确认后，直接删除其他涉及相同物品的待确认匹配，避免同一物品存在冲突关系
         List<Long> itemIds = List.of(match.getLostItemId(), match.getFoundItemId());
         LambdaQueryWrapper<Match> otherMatchWrapper = new LambdaQueryWrapper<>();
         otherMatchWrapper.and(w -> w.in(Match::getLostItemId, itemIds).or().in(Match::getFoundItemId, itemIds));
         otherMatchWrapper.eq(Match::getStatus, "PENDING");
         otherMatchWrapper.ne(Match::getId, matchId); // 排除当前确认的匹配
-        
+
         List<Match> otherMatches = matchRepository.selectList(otherMatchWrapper);
-        for (Match other : otherMatches) {
-            other.setStatus("REJECTED");
-            other.setUpdatedAt(LocalDateTime.now());
-            matchRepository.updateById(other);
-            log.info("自动拒绝与已确认匹配冲突的匹配: {}", other.getId());
+        if (!otherMatches.isEmpty()) {
+            List<Long> otherMatchIds = otherMatches.stream().map(Match::getId).toList();
+            matchRepository.deleteBatchIds(otherMatchIds);
+            log.info("确认匹配 {} 后删除冲突的待确认匹配: {}", matchId, otherMatchIds);
         }
 
         log.info("用户{} 确认匹配 {}", userId, matchId);
@@ -360,6 +362,9 @@ public class MatchingServiceImpl implements MatchingService {
         Match match = matchRepository.selectById(matchId);
         if (match == null) {
             throw new BusinessException("匹配记录不存在");
+        }
+        if (!"PENDING".equals(match.getStatus())) {
+            throw new BusinessException("只有待确认的匹配才能拒绝");
         }
 
         Item lostItem = itemRepository.selectById(match.getLostItemId());
@@ -386,7 +391,7 @@ public class MatchingServiceImpl implements MatchingService {
         validateMatchOwnership(userId, lostItem, foundItem);
 
         if ("CONFIRMED".equals(match.getStatus())) {
-            // 由匹配态取消：触发新匹配（确认时会清理其他匹配，所以需要重新生成）
+            // 由匹配态取消：触发新匹配（确认时会删除其他待确认匹配，所以需要重新生成）
             match.setStatus("PENDING");
             match.setUpdatedAt(LocalDateTime.now());
             matchRepository.updateById(match);

@@ -219,18 +219,19 @@ const fetchMatchList = async () => {
     const result = await itemStore.fetchMatches(params)
     matches.value = result?.records || []
     total.value = result?.total || 0
+    return true
   } catch (error) {
     console.error('获取匹配列表失败:', error)
     showError(error?.message || '获取匹配列表失败')
+    return false
   }
 }
 
 const handleConfirm = async (matchId) => {
   try {
     await itemStore.confirmMatch(matchId)
-    const match = matches.value.find(m => m.id === matchId)
-    if (match) match.status = 'CONFIRMED'
-    showSuccess('匹配确认成功')
+    const refreshed = await fetchMatchList()
+    showSuccess(refreshed ? '匹配确认成功' : '匹配确认成功，请手动刷新查看最新结果')
   } catch (error) {
     console.error('确认失败:', error)
     showError(error?.message || '匹配确认失败')
@@ -251,16 +252,13 @@ const handleReject = async (matchId) => {
 
 const handleCancel = async (matchId) => {
   try {
+    const previousStatus = matches.value.find(m => m.id === matchId)?.status
     await itemStore.cancelMatch(matchId)
-    const match = matches.value.find(m => m.id === matchId)
-    if (match) {
-      if (match.status === 'CONFIRMED') {
-        showSuccess('匹配已取消，物品已恢复可匹配状态，正在重新匹配...')
-        await fetchMatchList()
-      } else {
-        match.status = 'PENDING'
-        showSuccess('已恢复为待确认状态')
-      }
+    const refreshed = await fetchMatchList()
+    if (previousStatus === 'CONFIRMED') {
+      showSuccess(refreshed ? '匹配已取消，已重新匹配并刷新列表' : '匹配已取消，请手动刷新查看最新结果')
+    } else {
+      showSuccess(refreshed ? '已恢复为待确认状态并刷新列表' : '已恢复为待确认状态，请手动刷新查看最新结果')
     }
   } catch (error) {
     console.error('取消失败:', error)
