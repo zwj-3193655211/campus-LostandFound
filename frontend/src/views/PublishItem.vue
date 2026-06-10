@@ -119,6 +119,10 @@
                 placeholder="选择时间"
                 format="YYYY-MM-DD HH:mm:ss"
                 value-format="YYYY-MM-DD HH:mm:ss"
+                :disabled-date="disableFutureDate"
+                :disabled-hours="disabledFutureHours"
+                :disabled-minutes="disabledFutureMinutes"
+                :disabled-seconds="disabledFutureSeconds"
                 :prefix-icon="Clock"
                 class="form-datepicker"
               />
@@ -207,6 +211,92 @@ const form = reactive({
   imageUrls: []
 })
 
+const parseFormDateTime = (value) => {
+  if (!value) return null
+  if (value instanceof Date) return value
+
+  const [datePart, timePart = '00:00:00'] = String(value).split(' ')
+  const [year, month, day] = datePart.split('-').map(Number)
+  const [hour = 0, minute = 0, second = 0] = timePart.split(':').map(Number)
+
+  if ([year, month, day, hour, minute, second].some(Number.isNaN)) {
+    return null
+  }
+
+  return new Date(year, month - 1, day, hour, minute, second)
+}
+
+const isSameCalendarDate = (first, second) => {
+  return first.getFullYear() === second.getFullYear()
+    && first.getMonth() === second.getMonth()
+    && first.getDate() === second.getDate()
+}
+
+const createNumberRange = (start, end) => {
+  if (start > end) {
+    return []
+  }
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index)
+}
+
+const getCurrentTime = () => new Date()
+
+const getSelectedTime = () => parseFormDateTime(form.time)
+
+const disableFutureDate = (date) => {
+  return date.getTime() > getCurrentTime().getTime()
+}
+
+const disabledFutureHours = () => {
+  const selectedTime = getSelectedTime()
+  const now = getCurrentTime()
+  if (!selectedTime || !isSameCalendarDate(selectedTime, now)) {
+    return []
+  }
+  return createNumberRange(now.getHours() + 1, 23)
+}
+
+const disabledFutureMinutes = (selectedHour) => {
+  const selectedTime = getSelectedTime()
+  const now = getCurrentTime()
+  if (!selectedTime || !isSameCalendarDate(selectedTime, now) || selectedHour !== now.getHours()) {
+    return []
+  }
+  return createNumberRange(now.getMinutes() + 1, 59)
+}
+
+const disabledFutureSeconds = (selectedHour, selectedMinute) => {
+  const selectedTime = getSelectedTime()
+  const now = getCurrentTime()
+  if (!selectedTime
+    || !isSameCalendarDate(selectedTime, now)
+    || selectedHour !== now.getHours()
+    || selectedMinute !== now.getMinutes()) {
+    return []
+  }
+  return createNumberRange(now.getSeconds() + 1, 59)
+}
+
+const validatePastOrPresentTime = (_, value, callback) => {
+  if (!value) {
+    callback()
+    return
+  }
+
+  const parsedTime = parseFormDateTime(value)
+  if (!parsedTime) {
+    callback(new Error('时间格式不正确'))
+    return
+  }
+
+  if (parsedTime.getTime() > getCurrentTime().getTime()) {
+    callback(new Error('时间不能晚于当前时间'))
+    return
+  }
+
+  callback()
+}
+
 const rules = {
   title: [
     { required: true, message: '请输入物品名称', trigger: 'blur' },
@@ -224,7 +314,8 @@ const rules = {
     { min: 2, max: 100, message: '位置长度在2-100之间', trigger: 'blur' }
   ],
   time: [
-    { required: true, message: '请选择时间', trigger: 'blur' }
+    { required: true, message: '请选择时间', trigger: 'blur' },
+    { validator: validatePastOrPresentTime, trigger: 'change' }
   ],
   contactInfo: [
     { required: true, message: '请填写联系方式', trigger: 'blur' }
