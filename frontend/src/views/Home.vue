@@ -118,6 +118,7 @@
         <div class="section-title-wrapper">
           <el-icon :size="24" class="section-icon"><Clock /></el-icon>
           <h2 class="section-title">最新发布</h2>
+          <span class="time-badge">最近一周</span>
         </div>
         <el-button @click="goToItems" type="text" class="view-more-btn">
           查看更多
@@ -138,6 +139,16 @@
         <div v-if="recentItems.length === 0" class="empty-state">
           <el-icon :size="64" class="empty-icon"><Box /></el-icon>
           <p>暂无物品信息</p>
+        </div>
+        <div class="pagination-wrapper">
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="pageSize"
+            :total="total"
+            layout="prev, pager, next"
+            @current-change="handlePageChange"
+            background
+          />
         </div>
       </div>
     </div>
@@ -194,7 +205,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, markRaw } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   Search, Star, Grid, Clock, 
@@ -210,6 +221,9 @@ const itemStore = useItemStore()
 
 const searchKeyword = ref('')
 const recentItems = ref([])
+const currentPage = ref(1)
+const pageSize = ref(9)
+const total = ref(0)
 
 const stats = ref({
   found: 0,
@@ -221,37 +235,37 @@ const features = [
   {
     title: '智能匹配',
     description: '基于多维度特征的智能匹配算法，自动为您找到可能相关的失物信息',
-    icon: CircleCheck,
+    icon: markRaw(CircleCheck),
     iconClass: 'match-icon'
   },
   {
     title: '身份核验',
     description: '支持用户补充真实姓名和身份证号，为证件类物品核验提供保障',
-    icon: Check,
+    icon: markRaw(Check),
     iconClass: 'verify-icon'
   },
   {
     title: '实时通知',
     description: '匹配成功时即时通知，不错过任何找回机会',
-    icon: Bell,
+    icon: markRaw(Bell),
     iconClass: 'notify-icon'
   },
   {
     title: '安全保障',
     description: '严格的身份认证机制，确保物品归还给真正的失主',
-    icon: User,
+    icon: markRaw(User),
     iconClass: 'safety-icon'
   }
 ]
 
 const categories = ref([
-  { value: '电子产品', label: '电子产品', icon: Iphone, iconClass: 'cat-electronic', count: 0 },
-  { value: '证件', label: '证件', icon: CreditCard, iconClass: 'cat-id', count: 0 },
-  { value: '书籍', label: '书籍', icon: Notebook, iconClass: 'cat-book', count: 0 },
-  { value: '衣物', label: '衣物', icon: Suitcase, iconClass: 'cat-cloth', count: 0 },
-  { value: '饰品', label: '饰品', icon: Pear, iconClass: 'cat-jewelry', count: 0 },
-  { value: '文具', label: '文具', icon: EditPen, iconClass: 'cat-stationery', count: 0 },
-  { value: '其他', label: '其他', icon: Box, iconClass: 'cat-other', count: 0 }
+  { value: '电子产品', label: '电子产品', icon: markRaw(Iphone), iconClass: 'cat-electronic', count: 0 },
+  { value: '证件', label: '证件', icon: markRaw(CreditCard), iconClass: 'cat-id', count: 0 },
+  { value: '书籍', label: '书籍', icon: markRaw(Notebook), iconClass: 'cat-book', count: 0 },
+  { value: '衣物', label: '衣物', icon: markRaw(Suitcase), iconClass: 'cat-cloth', count: 0 },
+  { value: '饰品', label: '饰品', icon: markRaw(Pear), iconClass: 'cat-jewelry', count: 0 },
+  { value: '文具', label: '文具', icon: markRaw(EditPen), iconClass: 'cat-stationery', count: 0 },
+  { value: '其他', label: '其他', icon: markRaw(Box), iconClass: 'cat-other', count: 0 }
 ])
 
 const guideSteps = [
@@ -279,24 +293,83 @@ const goToPublish = () => {
   router.push('/publish')
 }
 
+// 获取最近一周的时间范围
+const getRecentWeekRange = () => {
+  const endTime = new Date()
+  const startTime = new Date()
+  startTime.setDate(startTime.getDate() - 7)
+  
+  // 转换为不带时区的ISO 8601格式（yyyy-MM-ddTHH:mm:ss）
+  // 后端LocalDateTime需要这种格式，不能带Z后缀
+  const formatDateTime = (date) => {
+    const pad = (n) => n.toString().padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  }
+  
+  return {
+    startTime: formatDateTime(startTime),
+    endTime: formatDateTime(endTime)
+  }
+}
+
+// 加载最新发布物品（最近一周）
+const loadRecentItems = async () => {
+  try {
+    console.log('开始加载最新物品，页码:', currentPage.value, '每页:', pageSize.value)
+    
+    // 获取最近一周的时间范围
+    const timeRange = getRecentWeekRange()
+    console.log('时间范围:', timeRange)
+    
+    const result = await itemStore.fetchItems({
+      page: currentPage.value,
+      pageSize: pageSize.value,
+      startTime: timeRange.startTime,
+      endTime: timeRange.endTime
+    })
+    
+    console.log('API返回结果:', JSON.stringify(result))
+    
+    if (result && result.records) {
+      recentItems.value = [...result.records]
+      total.value = result.total || 0
+      console.log('成功加载', recentItems.value.length, '条物品，总数:', total.value)
+    } else {
+      recentItems.value = []
+      total.value = 0
+      console.log('API返回数据格式不正确:', result)
+    }
+  } catch (error) {
+    console.error('加载最新物品失败:', error.message || error)
+    recentItems.value = []
+    total.value = 0
+  }
+}
+
+// 分页变化处理
+const handlePageChange = (page) => {
+  currentPage.value = page
+  loadRecentItems()
+  // 滚动到最新发布区域
+  document.querySelector('.recent-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 onMounted(async () => {
-  const [statsResult, itemsResult, categoriesResult] = await Promise.allSettled([
+  const [statsResult, categoriesResult] = await Promise.allSettled([
     itemStore.fetchPublicOverview(),
-    itemStore.fetchItems({ size: 6 }),
     itemStore.fetchPublicCategories()
   ])
 
   if (statsResult.status === 'fulfilled') {
     stats.value = {
-      found: statsResult.value?.found || 0,
+      found: statsResult.value?.resolved || 0,
       total: statsResult.value?.total || 0,
       matched: statsResult.value?.matched || 0
     }
   }
 
-  if (itemsResult.status === 'fulfilled') {
-    recentItems.value = itemsResult.value?.records || []
-  }
+  // 使用分页加载最新物品
+  await loadRecentItems()
 
   if (categoriesResult.status === 'fulfilled') {
     const categoryData = categoriesResult.value || {}
@@ -588,6 +661,15 @@ onMounted(async () => {
   justify-content: center;
   gap: 12px;
   margin-bottom: 10px;
+}
+
+.time-badge {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, var(--app-primary) 0%, #8b5cf6 100%);
+  color: #ffffff;
+  border-radius: 20px;
+  font-weight: 500;
 }
 
 .section-icon {
@@ -909,6 +991,18 @@ onMounted(async () => {
 .empty-state p {
   color: #94a3b8;
   font-size: 15px;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+  padding-top: 24px;
+}
+
+.pagination-wrapper :deep(.el-pagination) {
+  --el-pagination-button-bg-color: #fff;
+  --el-pagination-hover-color: var(--app-primary);
 }
 
 .guide-section {

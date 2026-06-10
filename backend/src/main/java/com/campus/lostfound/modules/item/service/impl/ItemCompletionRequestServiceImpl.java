@@ -10,6 +10,8 @@ import com.campus.lostfound.modules.item.repository.ItemCompletionRequestReposit
 import com.campus.lostfound.modules.item.repository.ItemRepository;
 import com.campus.lostfound.modules.item.service.ItemCompletionRequestService;
 import com.campus.lostfound.modules.notification.service.NotificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,8 @@ import java.util.Map;
 @Service
 public class ItemCompletionRequestServiceImpl implements ItemCompletionRequestService {
 
+    private static final Logger log = LoggerFactory.getLogger(ItemCompletionRequestServiceImpl.class);
+    
     private final ItemCompletionRequestRepository completionRequestRepository;
     private final ItemRepository itemRepository;
     private final NotificationService notificationService;
@@ -73,6 +77,15 @@ public class ItemCompletionRequestServiceImpl implements ItemCompletionRequestSe
         request.setCreatedAt(LocalDateTime.now());
         request.setUpdatedAt(LocalDateTime.now());
         completionRequestRepository.insert(request);
+
+        // 通知管理员有新的完成申请待审核
+        try {
+            notificationService.notifyAdminForCompletionRequest(itemId, item.getTitle(), targetStatus);
+        } catch (Exception e) {
+            // 通知失败不影响主流程
+            log.error("通知管理员完成申请失败: itemId={}", itemId, e);
+        }
+
         return request;
     }
 

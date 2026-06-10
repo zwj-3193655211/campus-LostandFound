@@ -192,6 +192,52 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    @Transactional
+    public void notifyAdminForCompletionRequest(Long itemId, String itemTitle, String targetStatus) {
+        // 获取所有管理员用户
+        LambdaQueryWrapper<User> adminWrapper = new LambdaQueryWrapper<>();
+        adminWrapper.in(User::getRole, List.of("SUPER_ADMIN", "CAMPUS_ADMIN"));
+        List<User> admins = userRepository.selectList(adminWrapper);
+
+        String targetText = ItemConstants.Status.FOUND_BACK.equals(targetStatus) ? "已找到" : "已归还";
+        String title = "新完成申请待审核";
+        String content = String.format("用户提交了物品\"%s\"的状态变更申请，申请将状态改为\"%s\"，请及时审核", 
+                itemTitle, targetText);
+
+        for (User admin : admins) {
+            // 创建站内通知
+            create(admin.getId(), ItemConstants.NotificationType.COMPLETION_REVIEW_REQUEST, title, content, itemId);
+
+            // 发送邮件通知（如果管理员开启了邮件通知）
+            if (Integer.valueOf(1).equals(admin.getNotificationEmail())) {
+                sendCompletionRequestEmail(admin, itemTitle, targetStatus, itemId);
+            }
+        }
+
+        log.info("通知管理员完成申请: itemId={}, itemTitle={}, targetStatus={}, adminCount={}", 
+                itemId, itemTitle, targetStatus, admins.size());
+    }
+
+    /**
+     * 发送完成申请邮件通知给管理员
+     */
+    private void sendCompletionRequestEmail(User admin, String itemTitle, String targetStatus, Long itemId) {
+        try {
+            if (admin.getEmail() == null || admin.getEmail().isBlank()) {
+                log.warn("Admin email is empty, skip sending email. userId={}", admin.getId());
+                return;
+            }
+
+            String targetText = ItemConstants.Status.FOUND_BACK.equals(targetStatus) ? "已找到" : "已归还";
+            mailService.sendCompletionRequestEmail(admin.getEmail(), admin.getUsername(), itemTitle, targetText, itemId);
+
+            log.info("完成申请邮件已发送: itemId={}, to={}", itemId, admin.getEmail());
+        } catch (Exception e) {
+            log.error("发送完成申请邮件失败: itemId={}", itemId, e);
+        }
+    }
+
+    @Override
     public PageResponse<Notification> getUserNotifications(Long userId, int page, int pageSize) {
         LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Notification::getUserId, userId);

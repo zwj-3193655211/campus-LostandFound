@@ -25,12 +25,7 @@
         >
           招领
         </el-button>
-        <el-button 
-          @click="activeTab = 'claimed'" 
-          :type="activeTab === 'claimed' ? 'primary' : 'default'"
-        >
-          已认领
-        </el-button>
+        
       </div>
     </div>
 
@@ -94,7 +89,7 @@
                 type="success"
                 size="small"
               >
-                {{ item.type === 'LOST' ? '申请已找到' : '申请已归还' }}
+                {{ item.type === 'LOST' ? '标记已找到' : '标记已归还' }}
               </el-button>
               <el-button 
                 v-if="item.status === 'PENDING' || item.status === 'REJECTED'" 
@@ -140,8 +135,6 @@ const filteredItems = computed(() => {
       return myItems.value.filter(i => i.type === 'LOST')
     case 'found':
       return myItems.value.filter(i => i.type === 'FOUND')
-    case 'claimed':
-      return myItems.value.filter(i => i.highConfidenceMatched || i.status === 'FOUND_BACK' || i.status === 'RETURNED')
     default:
       return myItems.value
   }
@@ -151,8 +144,7 @@ const getTabLabel = () => {
   const labelMap = {
     'all': '',
     'lost': '寻物',
-    'found': '招领',
-    'claimed': '已匹配/已完成'
+    'found': '招领'
   }
   return labelMap[activeTab.value] || ''
 }
@@ -195,28 +187,25 @@ const canSubmitCompletion = (item) => {
 }
 
 const handleCompletionRequest = async (item) => {
+  const targetStatus = item.type === 'LOST' ? 'FOUND_BACK' : 'RETURNED'
+  const actionText = item.type === 'LOST' ? '已找到' : '已归还'
+  
   try {
-    const { value } = await ElMessageBox.prompt(
-      item.type === 'LOST' ? '请填写“已找到”的补充说明。' : '请填写“已归还”的补充说明。',
-      '提交完成申请',
-      {
-        confirmButtonText: '提交',
-        cancelButtonText: '取消',
-        inputType: 'textarea'
-      }
-    )
+    await confirmAction(`确定要标记该物品为“${actionText}”吗？`)
+  } catch {
+    return
+  }
+  
+  try {
     await itemStore.submitCompletionRequest(item.id, {
-      targetStatus: item.type === 'LOST' ? 'FOUND_BACK' : 'RETURNED',
-      reason: value || ''
+      targetStatus: targetStatus,
+      reason: ''
     })
     item.pendingCompletionStatus = 'PENDING'
-    item.pendingCompletionTargetStatus = item.type === 'LOST' ? 'FOUND_BACK' : 'RETURNED'
-    showSuccess(`已提交${formatCompletionTargetStatus(item.pendingCompletionTargetStatus)}申请`)
+    item.pendingCompletionTargetStatus = targetStatus
+    showSuccess(`已标记为“${actionText}”`)
   } catch (error) {
-    if (error === 'cancel' || error === 'close') {
-      return
-    }
-    showError(error?.message || '提交完成申请失败')
+    showError(error?.message || '操作失败')
   }
 }
 

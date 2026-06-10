@@ -40,9 +40,9 @@
         </el-col>
       </el-row>
       <div class="stats-row">
-        <el-statistic title="物品总数" :value="total" />
-        <el-statistic title="寻物数量" :value="lostCount" />
-        <el-statistic title="招领数量" :value="foundCount" />
+        <el-statistic title="信息总数" :value="stats.total" />
+        <el-statistic title="寻物数量" :value="stats.lost" />
+        <el-statistic title="招领数量" :value="stats.found" />
       </div>
     </div>
 
@@ -55,15 +55,16 @@
       <el-empty v-else :description="emptyText" />
     </div>
 
-    <el-pagination 
-      v-if="total > 0"
-      :current-page="pagination.current" 
-      :page-size="pagination.size" 
-      :total="total"
-      @size-change="handleSizeChange"
-      @current-change="handleCurrentChange"
-      layout="total, sizes, prev, pager, next, jumper"
-    />
+    <div class="pagination-wrapper">
+      <el-pagination 
+        :current-page="pagination.current" 
+        :page-size="pagination.size" 
+        :total="total"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+        layout="total, sizes, prev, pager, next, jumper"
+      />
+    </div>
   </div>
 </template>
 
@@ -83,6 +84,11 @@ const searchKeyword = ref('')
 const items = ref([])
 const total = ref(0)
 const emptyText = ref('暂无物品')
+const stats = ref({
+  lost: 0,
+  found: 0,
+  total: 0
+})
 
 const filters = reactive({
   type: '',
@@ -149,7 +155,7 @@ const handleCurrentChange = async (page) => {
 const fetchItems = async () => {
   const params = {
     page: pagination.current,
-    size: pagination.size,
+    pageSize: pagination.size,
     keyword: searchKeyword.value || undefined,
     type: filters.type || undefined,
     category: filters.category || undefined
@@ -157,10 +163,12 @@ const fetchItems = async () => {
   
   try {
     const result = await itemStore.fetchItems(params)
+    console.log('fetchItems result:', result)
     items.value = result?.records || []
     total.value = result?.total || 0
     emptyText.value = '暂无物品'
   } catch (error) {
+    console.error('fetchItems error:', error)
     items.value = []
     total.value = 0
     emptyText.value = '物品加载失败'
@@ -168,12 +176,26 @@ const fetchItems = async () => {
   }
 }
 
-onMounted(async () => {
+const fetchStats = async () => {
   try {
-    await itemStore.fetchLocations()
+    const result = await itemStore.fetchPublicOverview()
+    console.log('fetchStats result:', result)
+    stats.value = {
+      lost: result?.lost || 0,
+      found: result?.found || 0,
+      total: (result?.lost || 0) + (result?.found || 0)
+    }
+    console.log('stats:', stats.value)
   } catch (error) {
-    showError(typeof error === 'string' ? error : (error?.message || '位置加载失败'))
+    console.error('获取统计数据失败:', error)
   }
+}
+
+onMounted(async () => {
+  await Promise.allSettled([
+    itemStore.fetchLocations().catch(error => showError(typeof error === 'string' ? error : (error?.message || '位置加载失败'))),
+    fetchStats()
+  ])
   applyRouteQuery()
   await fetchItems()
 })
@@ -244,7 +266,15 @@ watch(
   margin-bottom: 0;
 }
 
-.el-pagination {
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--app-border);
+}
+
+.pagination-wrapper :deep(.el-pagination) {
   text-align: center;
 }
 </style>

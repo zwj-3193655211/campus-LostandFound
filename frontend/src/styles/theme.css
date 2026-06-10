@@ -735,6 +735,11 @@ body {
 .el-pagination .el-pager li.is-active {
   background: linear-gradient(135deg, var(--app-primary) 0%, #8b5cf6 100%);
   border-color: transparent;
+  color: #ffffff !important;
+}
+
+.el-pagination .el-pager li {
+  color: var(--app-text);
 }
 
 .el-pagination .el-pager li {

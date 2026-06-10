@@ -50,4 +50,20 @@ public interface MailService {
      * 发送简单邮件通知
      */
     void sendSimpleEmail(String userEmail, String subject, String content);
+
+    /**
+     * 发送完成申请审核通知邮件给管理员
+     * @param adminEmail 管理员邮箱
+     * @param adminName 管理员姓名
+     * @param itemTitle 物品标题
+     * @param targetStatus 目标状态
+     * @param itemId 物品ID
+     */
+    void sendCompletionRequestEmail(
+            String adminEmail,
+            String adminName,
+            String itemTitle,
+            String targetStatus,
+            Long itemId
+    );
 }

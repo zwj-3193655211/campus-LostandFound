@@ -85,7 +85,8 @@ public class SaTokenAuthenticationFilter extends OncePerRequestFilter {
                 }
             } catch (Exception e) {
                 log.warn("Sa-Token 验证失败: {}, 路径={}, Token前20字符={}", e.getMessage(), path, token.length() > 20 ? token.substring(0, 20) : token);
-                SecurityContextHolder.clearContext();
+                // 不清除 SecurityContext，让请求继续通过过滤器链
+                // 这样 permitAll 配置的公开接口可以正常访问
             }
         }
 

@@ -107,7 +107,11 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="createdAt" label="发布时间" />
+            <el-table-column label="发布时间">
+              <template #default="scope">
+                {{ formatDateTime(scope.row.createdAt) }}
+              </template>
+            </el-table-column>
             <el-table-column label="操作">
               <template #default="scope">
                 <el-button @click="handleVerify(scope.row.id, true)" type="success" size="small">
@@ -263,6 +267,31 @@ const getStatusText = (status) => {
     'REJECTED': '已拒绝'
   }
   return statusMap[status] || status
+}
+
+const formatDateTime = (dateTimeStr) => {
+  if (!dateTimeStr) return '未知'
+  try {
+    // 移除ISO 8601格式中的T，然后格式化
+    const date = new Date(dateTimeStr)
+    if (isNaN(date.getTime())) {
+      // 如果解析失败，尝试手动替换T
+      const formatted = dateTimeStr.replace('T', ' ')
+      // 只保留到秒
+      return formatted.substring(0, 19)
+    }
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  } catch {
+    // 如果所有方法都失败，直接替换T并返回
+    return dateTimeStr.replace('T', ' ')
+  }
 }
 
 const handleVerify = async (itemId, approved) => {

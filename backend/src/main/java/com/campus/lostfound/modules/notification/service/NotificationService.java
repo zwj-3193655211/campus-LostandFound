@@ -29,6 +29,11 @@ public interface NotificationService {
     long getUnreadCount(Long userId);
 
     /**
+     * 通知管理员有新的完成申请待审核
+     */
+    void notifyAdminForCompletionRequest(Long itemId, String itemTitle, String targetStatus);
+
+    /**
      * 获取用户通知列表
      */
     PageResponse<Notification> getUserNotifications(Long userId, int page, int pageSize);

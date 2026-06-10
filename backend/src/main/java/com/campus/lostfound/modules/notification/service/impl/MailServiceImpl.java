@@ -110,6 +110,67 @@ public class MailServiceImpl implements MailService {
         }
     }
 
+    @Override
+    @Async("mailExecutor")
+    public void sendCompletionRequestEmail(
+            String adminEmail,
+            String adminName,
+            String itemTitle,
+            String targetStatus,
+            Long itemId
+    ) {
+        try {
+            String targetText = "FOUND_BACK".equals(targetStatus) ? "已找到" : "已归还";
+            String subject = "【校园失物招领】新完成申请待审核";
+            
+            sendHtmlEmail(
+                    adminEmail,
+                    subject,
+                    buildCompletionRequestEmailHtml(adminName, itemTitle, targetText, itemId)
+            );
+            log.info("完成申请审核通知邮件已发送至: {}", adminEmail);
+        } catch (Exception e) {
+            log.error("发送完成申请审核通知邮件失败: {}", e.getMessage(), e);
+        }
+    }
+
+    private String buildCompletionRequestEmailHtml(String adminName, String itemTitle, String targetStatus, Long itemId) {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="UTF-8"></head>
+            <body style="font-family:'Microsoft YaHei',Arial,sans-serif;background:#f5f5f5;padding:20px;">
+                <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;">
+                    <div style="background:linear-gradient(135deg,#ff9800,#f57c00);color:white;padding:20px;text-align:center;">
+                        <h1>校园失物招领平台</h1>
+                        <p>管理员审核提醒</p>
+                    </div>
+                    <div style="padding:20px;">
+                        <p>亲爱的<strong>%s</strong>：</p>
+                        <p>有新的物品完成申请需要您审核：</p>
+                        <div style="background:#fff3e0;border:2px solid #ff9800;border-radius:8px;padding:15px;margin:15px 0;">
+                            <h3>待审核申请</h3>
+                            <p><strong>物品标题：</strong>%s</p>
+                            <p><strong>申请状态：</strong><span style="color:#f57c00;font-weight:bold;">%s</span></p>
+                        </div>
+                        <p style="text-align:center;margin-top:20px;">
+                            <a href="%s/admin/completion-requests" style="display:inline-block;background:#ff9800;color:white;padding:12px 24px;text-decoration:none;border-radius:5px;">立即审核</a>
+                        </p>
+                    </div>
+                    <div style="background:#f5f5f5;padding:15px;text-align:center;color:#999;font-size:12px;">
+                        © 2026 校园失物招领平台
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(
+                adminName,
+                escapeHtml(itemTitle),
+                targetStatus,
+                baseUrl
+            );
+    }
+
     private Session createMailSession() {
         Properties props = new Properties();
         props.put("mail.smtp.host", smtpHost);

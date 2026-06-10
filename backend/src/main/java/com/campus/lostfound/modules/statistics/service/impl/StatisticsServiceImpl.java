@@ -133,20 +133,36 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Override
     public Map<String, Object> getPublicOverview() {
-        // 尝试从缓存获取
-        @SuppressWarnings("unchecked")
-        Map<String, Object> cached = (Map<String, Object>) cacheService.getStatistics(CACHE_KEY_OVERVIEW);
-        if (cached != null) {
-            log.debug("从缓存获取Overview数据");
-            return cached;
-        }
-
+        // 强制重新计算，不使用缓存（修复统计数据显示问题）
         Map<String, Object> overview = new LinkedHashMap<>();
-        overview.put("found", countItemsByStatuses(RESOLVED_ITEM_STATUSES));
-        overview.put("total", countItemsByStatuses(PUBLIC_ITEM_STATUSES));
+        
+        // 统计公开状态的寻物数量（类型为 LOST）
+        LambdaQueryWrapper<Item> lostWrapper = new LambdaQueryWrapper<>();
+        lostWrapper.eq(Item::getDeleted, 0)
+                   .in(Item::getStatus, PUBLIC_ITEM_STATUSES)
+                   .eq(Item::getType, "LOST");
+        long lostCount = itemRepository.selectCount(lostWrapper);
+        
+        // 统计公开状态的招领数量（类型为 FOUND）
+        LambdaQueryWrapper<Item> foundWrapper = new LambdaQueryWrapper<>();
+        foundWrapper.eq(Item::getDeleted, 0)
+                    .in(Item::getStatus, PUBLIC_ITEM_STATUSES)
+                    .eq(Item::getType, "FOUND");
+        long foundCount = itemRepository.selectCount(foundWrapper);
+        
+        // 已解决物品数（FOUND_BACK + RETURNED）
+        long resolvedCount = countItemsByStatuses(RESOLVED_ITEM_STATUSES);
+        
+        overview.put("lost", lostCount);
+        overview.put("found", foundCount);
+        overview.put("resolved", resolvedCount);
+        overview.put("total", lostCount + foundCount);
         overview.put("matched", countConfirmedMatches());
+        
+        log.info("Public overview stats: lost={}, found={}, total={}, resolved={}, matched={}", 
+                 lostCount, foundCount, lostCount + foundCount, resolvedCount, countConfirmedMatches());
 
-        // 缓存5分钟
+        // 更新缓存
         cacheService.setStatistics(CACHE_KEY_OVERVIEW, overview);
         return overview;
     }
