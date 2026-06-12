@@ -393,7 +393,8 @@ public class MatchingServiceImpl implements MatchingService {
         validateMatchOwnership(userId, lostItem, foundItem);
 
         if ("CONFIRMED".equals(match.getStatus())) {
-            // 由匹配态取消：删除旧匹配记录，触发新匹配
+            // 由匹配态取消：删除旧匹配记录，但不再自动触发匹配
+            // 避免用户刚取消又收到同样的邮件通知
             Long lostItemId = match.getLostItemId();
             Long foundItemId = match.getFoundItemId();
             
@@ -413,23 +414,8 @@ public class MatchingServiceImpl implements MatchingService {
                 foundItem.setUpdatedAt(LocalDateTime.now());
                 itemRepository.updateById(foundItem);
             }
-
-            // 触发重新匹配
-            if (lostItem != null && "APPROVED".equals(lostItem.getStatus())) {
-                try {
-                    match(lostItem.getId());
-                } catch (Exception e) {
-                    log.warn("重新匹配 lostItem {} 失败", lostItem.getId(), e);
-                }
-            }
-            if (foundItem != null && "APPROVED".equals(foundItem.getStatus())) {
-                try {
-                    match(foundItem.getId());
-                } catch (Exception e) {
-                    log.warn("重新匹配 foundItem {} 失败", foundItem.getId(), e);
-                }
-            }
-            log.info("用户{} 取消匹配（重新触发匹配） {}", userId, matchId);
+            
+            log.info("用户{} 取消匹配（已删除匹配记录，物品可被后续匹配）", userId);
         } else if ("REJECTED".equals(match.getStatus())) {
             // 由拒绝态取消：只改状态为待确认，不触发新匹配
             match.setStatus("PENDING");
