@@ -47,8 +47,7 @@ public class ItemCompletionRequestServiceImpl implements ItemCompletionRequestSe
         if (!userId.equals(item.getUserId())) {
             throw new BusinessException("无权提交该物品的完成申请");
         }
-        if (!ItemConstants.Status.APPROVED.equals(item.getStatus()) 
-            && !ItemConstants.Status.MATCHED.equals(item.getStatus())) {
+        if (!ItemConstants.Status.APPROVED.equals(item.getStatus())) {
             throw new BusinessException("仅已审核发布且未完成的物品允许提交完成申请");
         }
 
