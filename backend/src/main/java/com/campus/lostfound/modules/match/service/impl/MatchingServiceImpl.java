@@ -296,6 +296,8 @@ public class MatchingServiceImpl implements MatchingService {
         List<Long> itemIds = myItems.stream().map(Item::getId).toList();
         LambdaQueryWrapper<Match> wrapper = new LambdaQueryWrapper<>();
         wrapper.and(w -> w.in(Match::getLostItemId, itemIds).or().in(Match::getFoundItemId, itemIds));
+        // 只显示匹配度>=70%的匹配
+        wrapper.ge(Match::getScore, new BigDecimal("0.70"));
         // 如果有status筛选条件
         if (status != null && !status.isBlank()) {
             wrapper.eq(Match::getStatus, status);
