@@ -8,12 +8,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import java.util.regex.Pattern;
 
 /**
- * 智能匹配引擎
+ * 智能匹配引擎 - 优化版
+ * 改进文本相似度算法，更好支持中文匹配
  */
 @Component
 public class MatchingEngine {
@@ -27,7 +27,7 @@ public class MatchingEngine {
     private static final BigDecimal WEIGHT_COLOR = new BigDecimal("0.05");
     private static final BigDecimal WEIGHT_TIME = new BigDecimal("0.10");
 
-    private static final BigDecimal MATCH_THRESHOLD = new BigDecimal("0.65");
+    private static final BigDecimal MATCH_THRESHOLD = new BigDecimal("0.50");
     private static final BigDecimal SERIAL_CONFLICT_PENALTY = new BigDecimal("0.40");
 
     public BigDecimal calculateScore(LostItem lostType, FoundItem foundType) {
@@ -100,7 +100,7 @@ public class MatchingEngine {
     }
 
     private BigDecimal calculateLocationScore(String locationText1, String locationText2) {
-        BigDecimal textScore = similarityScore(locationText1, locationText2);
+        BigDecimal textScore = calculateChineseSimilarity(locationText1, locationText2);
         if (textScore.compareTo(BigDecimal.ZERO) == 0) {
             return new BigDecimal("0.5");
         }
@@ -119,7 +119,7 @@ public class MatchingEngine {
         if (b1.contains(b2) || b2.contains(b1)) {
             return new BigDecimal("0.8");
         }
-        return similarityScore(brand1, brand2).multiply(new BigDecimal("0.7")).setScale(2, RoundingMode.HALF_UP);
+        return calculateChineseSimilarity(brand1, brand2).multiply(new BigDecimal("0.7")).setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal calculateColorScore(String color1, String color2) {
@@ -159,7 +159,7 @@ public class MatchingEngine {
     private BigDecimal calculateTextScore(LostItem lostType, FoundItem foundType) {
         String left = joinNonBlank(lostType.title, lostType.description, lostType.locationText);
         String right = joinNonBlank(foundType.title, foundType.description, foundType.locationText);
-        BigDecimal score = similarityScore(left, right);
+        BigDecimal score = calculateChineseSimilarity(left, right);
         if (score.compareTo(BigDecimal.ZERO) == 0) {
             return new BigDecimal("0.5");
         }
@@ -180,50 +180,143 @@ public class MatchingEngine {
         return out.toString();
     }
 
-    private BigDecimal similarityScore(String left, String right) {
-        Set<String> a = tokenize(left);
-        Set<String> b = tokenize(right);
-        if (a.isEmpty() || b.isEmpty()) {
+    /**
+     * 优化的中文文本相似度计算
+     * 结合多种策略：
+     * 1. 关键词匹配（完整词语匹配，权重更高）
+     * 2. N-gram匹配（字符级别的匹配）
+     * 3. 包含关系检测
+     */
+    private BigDecimal calculateChineseSimilarity(String text1, String text2) {
+        if (text1 == null || text2 == null || text1.isBlank() || text2.isBlank()) {
             return BigDecimal.ZERO;
         }
-        int intersection = 0;
-        for (String token : a) {
-            if (b.contains(token)) {
-                intersection++;
+
+        String left = text1.trim().toLowerCase();
+        String right = text2.trim().toLowerCase();
+
+        // 完全相等
+        if (left.equals(right)) {
+            return BigDecimal.ONE;
+        }
+
+        // 包含关系检测
+        if (left.contains(right) || right.contains(left)) {
+            return new BigDecimal("0.8");
+        }
+
+        // 提取关键词并匹配
+        Set<String> keywords1 = extractKeywords(left);
+        Set<String> keywords2 = extractKeywords(right);
+        
+        if (keywords1.isEmpty() && keywords2.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        // 计算关键词匹配分数
+        int keywordMatch = 0;
+        int totalKeywords = keywords1.size() + keywords2.size();
+        
+        for (String kw1 : keywords1) {
+            for (String kw2 : keywords2) {
+                if (kw1.equals(kw2) || kw1.contains(kw2) || kw2.contains(kw1)) {
+                    keywordMatch += 2; // 完整匹配权重更高
+                }
             }
         }
-        int total = a.size() + b.size();
-        if (total == 0) {
-            return BigDecimal.ZERO;
+
+        // N-gram字符匹配
+        Set<String> ngrams1 = extractNgrams(left);
+        Set<String> ngrams2 = extractNgrams(right);
+        
+        int ngramMatch = 0;
+        for (String ng1 : ngrams1) {
+            if (ngrams2.contains(ng1)) {
+                ngramMatch++;
+            }
         }
-        double dice = (2.0 * intersection) / total;
-        return BigDecimal.valueOf(dice).setScale(2, RoundingMode.HALF_UP);
+
+        // 结合两种分数
+        double keywordScore = totalKeywords > 0 ? (double) keywordMatch / totalKeywords : 0;
+        double ngramScore = calculateJaccardSimilarity(ngrams1, ngrams2);
+        
+        // 关键词权重更高
+        double combinedScore = keywordScore * 0.6 + ngramScore * 0.4;
+        
+        return BigDecimal.valueOf(Math.min(1.0, combinedScore)).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private Set<String> tokenize(String text) {
+    /**
+     * 提取关键词（中文词语）
+     */
+    private Set<String> extractKeywords(String text) {
+        Set<String> keywords = new HashSet<>();
         if (text == null || text.isBlank()) {
-            return Set.of();
+            return keywords;
         }
 
-        String normalized = normalizeText(text);
-        Set<String> tokens = new HashSet<>();
-
-        for (String word : normalized.split("[^a-z0-9]+")) {
-            if (word.length() >= 2) {
-                tokens.add(word);
+        // 移除特殊字符，保留中文、英文、数字
+        String cleaned = text.replaceAll("[^\\p{IsHan}a-zA-Z0-9\\s]", " ");
+        
+        // 按空格分割
+        String[] parts = cleaned.split("\\s+");
+        for (String part : parts) {
+            part = part.trim();
+            if (part.length() >= 2) {
+                keywords.add(part.toLowerCase());
+            }
+            // 对于中文，提取2-gram和3-gram
+            String han = part.replaceAll("[^\\p{IsHan}]", "");
+            for (int i = 0; i + 1 < han.length(); i++) {
+                keywords.add(han.substring(i, i + 2));
+            }
+            for (int i = 0; i + 2 < han.length(); i++) {
+                keywords.add(han.substring(i, i + 3));
             }
         }
-
-        String han = normalized.replaceAll("[^\\p{IsHan}]+", "");
-        for (int i = 0; i + 1 < han.length(); i++) {
-            tokens.add(han.substring(i, i + 2));
-        }
-        return tokens;
+        return keywords;
     }
 
-    private String normalizeText(String text) {
-        String value = text == null ? "" : text.trim().toLowerCase();
-        return value.replaceAll("\\s+", " ");
+    /**
+     * 提取N-gram特征
+     */
+    private Set<String> extractNgrams(String text) {
+        Set<String> ngrams = new HashSet<>();
+        if (text == null || text.isBlank()) {
+            return ngrams;
+        }
+
+        String cleaned = text.replaceAll("[^\\p{IsHan}a-zA-Z0-9]", "");
+        if (cleaned.length() < 2) {
+            ngrams.add(cleaned);
+            return ngrams;
+        }
+
+        // 字符级别的bigram
+        for (int i = 0; i + 1 < cleaned.length(); i++) {
+            ngrams.add(cleaned.substring(i, i + 2).toLowerCase());
+        }
+        return ngrams;
+    }
+
+    /**
+     * Jaccard相似度
+     */
+    private double calculateJaccardSimilarity(Set<String> set1, Set<String> set2) {
+        if (set1.isEmpty() && set2.isEmpty()) {
+            return 0;
+        }
+        if (set1.isEmpty() || set2.isEmpty()) {
+            return 0;
+        }
+
+        Set<String> intersection = new HashSet<>(set1);
+        intersection.retainAll(set2);
+        
+        Set<String> union = new HashSet<>(set1);
+        union.addAll(set2);
+        
+        return (double) intersection.size() / union.size();
     }
 
     public static class LostItem {
