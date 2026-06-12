@@ -117,7 +117,7 @@ sequenceDiagram
 | 模块 | 职责 |
 |------|------|
 | system | 登录注册、个人中心、用户管理、实名认证 |
-| item | 物品 CRUD、位置管理、图片上传、完成申请 |
+| item | 物品 CRUD、图片上传、完成申请 |
 | match | 智能匹配、匹配确认/拒绝、证件失主通知 |
 | notification | 站内通知、邮件提醒 |
 | statistics | 首页公开统计、后台报表 |
