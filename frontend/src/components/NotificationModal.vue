@@ -220,7 +220,7 @@ const handleMarkAllRead = async () => {
 
 const goToAudit = () => {
   if (selectedNotification.value.type === 'ITEM_PENDING') {
-    router.push('/admin/items?status=PENDING')
+    router.push('/admin')
   } else if (selectedNotification.value.type === 'VERIFICATION_PENDING') {
     router.push('/admin/identity-verifications')
   }
