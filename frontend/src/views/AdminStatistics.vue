@@ -169,7 +169,9 @@ const goBack = () => {
 }
 
 const convertMapToRows = (data) => {
-  return Object.entries(data || {}).map(([name, count]) => ({ name, count }))
+  return Object.entries(data || {})
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count) // 按数量降序排序
 }
 
 const getBarWidth = (count, rows) => {
