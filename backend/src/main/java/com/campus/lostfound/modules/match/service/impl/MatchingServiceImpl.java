@@ -393,29 +393,25 @@ public class MatchingServiceImpl implements MatchingService {
         validateMatchOwnership(userId, lostItem, foundItem);
 
         if ("CONFIRMED".equals(match.getStatus())) {
-            // 由匹配态取消：删除旧匹配记录，但不再自动触发匹配
-            // 避免用户刚取消又收到同样的邮件通知
-            Long lostItemId = match.getLostItemId();
-            Long foundItemId = match.getFoundItemId();
+            // 由匹配态取消：状态改回PENDING，不触发新匹配，不发邮件
+            match.setStatus("PENDING");
+            match.setUpdatedAt(LocalDateTime.now());
+            matchRepository.updateById(match);
             
-            // 删除该匹配记录
-            matchRepository.deleteById(matchId);
-            
-            // 清除两个物品的匹配标记，使其可以被其他匹配
-            if (lostItem != null && foundItemId.equals(lostItem.getMatchItemId())) {
+            // 清除两个物品的匹配标记，使其状态一致
+            if (lostItem != null) {
                 lostItem.setMatchItemId(null);
                 lostItem.setMatchScore(null);
                 lostItem.setUpdatedAt(LocalDateTime.now());
                 itemRepository.updateById(lostItem);
             }
-            if (foundItem != null && lostItemId.equals(foundItem.getMatchItemId())) {
+            if (foundItem != null) {
                 foundItem.setMatchItemId(null);
                 foundItem.setMatchScore(null);
                 foundItem.setUpdatedAt(LocalDateTime.now());
                 itemRepository.updateById(foundItem);
             }
-            
-            log.info("用户{} 取消匹配（已删除匹配记录，物品可被后续匹配）", userId);
+            log.info("用户{} 取消匹配（状态改为待确认） {}", userId, matchId);
         } else if ("REJECTED".equals(match.getStatus())) {
             // 由拒绝态取消：只改状态为待确认，不触发新匹配
             match.setStatus("PENDING");
