@@ -7,7 +7,7 @@ import java.math.BigDecimal;
  */
 public class ItemConstants {
 
-    public static final BigDecimal HIGH_CONFIDENCE_MATCH_THRESHOLD = new BigDecimal("0.80");
+    public static final BigDecimal HIGH_CONFIDENCE_MATCH_THRESHOLD = new BigDecimal("0.70");
 
     /**
      * 物品类型
