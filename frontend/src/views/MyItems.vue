@@ -181,8 +181,9 @@ const handleDelete = async (itemId) => {
 }
 
 const canSubmitCompletion = (item) => {
-  return item.status === 'APPROVED'
-    && item.highConfidenceMatched
+  // 审核通过且没有待处理的完成申请，就可以标记为已找回/已归还
+  // 不要求必须有平台匹配，用户可能通过其他方式找回
+  return (item.status === 'APPROVED' || item.status === 'MATCHED')
     && item.pendingCompletionStatus !== 'PENDING'
 }
 
