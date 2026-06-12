@@ -27,7 +27,7 @@ public class MatchingEngine {
     private static final BigDecimal WEIGHT_COLOR = new BigDecimal("0.05");
     private static final BigDecimal WEIGHT_TIME = new BigDecimal("0.10");
 
-    private static final BigDecimal MATCH_THRESHOLD = new BigDecimal("0.50");
+    private static final BigDecimal MATCH_THRESHOLD = new BigDecimal("0.70");
     private static final BigDecimal SERIAL_CONFLICT_PENALTY = new BigDecimal("0.40");
 
     public BigDecimal calculateScore(LostItem lostType, FoundItem foundType) {
