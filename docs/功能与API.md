@@ -155,7 +155,6 @@ Body: { "notificationInApp": true, "notificationEmail": true, "notificationMatch
 | type | string | LOST 或 FOUND |
 | category | string | 物品类别 |
 | keyword | string | 搜索关键词（标题/描述） |
-| locationId | long | 位置ID |
 | status | string | 物品状态（APPROVED/PENDING等） |
 | page | int | 页码，默认1 |
 | pageSize | int | 每页数量，默认10 |
@@ -169,8 +168,7 @@ Body: { "notificationInApp": true, "notificationEmail": true, "notificationMatch
   "description": "详细描述丢失情况",
   "brand": "品牌",
   "color": "颜色",
-  "locationId": 1,
-  "location": "详细位置描述",
+  "location": "图书馆三楼",
   "lostTime": "2026-05-29T10:00:00",
   "serialNumber": "可选序列号",
   "contactInfo": "联系方式",
@@ -180,17 +178,24 @@ Body: { "notificationInApp": true, "notificationEmail": true, "notificationMatch
 
 ---
 
-### 2.4 位置接口
+### 2.4 位置接口（简化版）
+
+> 位置信息使用内存中的固定列表，不再使用数据库存储。
 
 | 接口 | 方法 | 说明 | 权限 |
 |------|------|------|------|
-| `GET /api/locations` | GET | 所有位置列表（带 Redis 缓存） | 公开 |
-| `GET /api/locations/{id}` | GET | 位置详情 | 公开 |
-| `POST /api/locations` | POST | 新增位置 | 管理员 |
-| `PUT /api/locations/{id}` | PUT | 修改位置 | 管理员 |
-| `DELETE /api/locations/{id}` | DELETE | 删除位置（有关联物品时禁止） | 管理员 |
+| `GET /api/locations` | GET | 所有位置列表 | 公开 |
+| `GET /api/locations/suggestions` | GET | 位置搜索建议 | 公开 |
 
-**说明**：GET 请求对外公开，POST/PUT/DELETE 需 CAMPUS_ADMIN 或 SUPER_ADMIN 角色。
+**位置列表**：
+```json
+GET /api/locations
+
+Response: {
+  "code": 200,
+  "data": ["图书馆", "教学楼", "食堂", "宿舍", "体育馆", "操场", "行政楼", "实验室", "校医院", "校门口", "停车场", "超市", "快递点", "其他"]
+}
+```
 
 ---
 
@@ -279,7 +284,6 @@ PUT /api/admin/identity-verifications/{id}/review?approved=true&reason=资料完
 | `GET /api/admin/statistics/today` | GET | 今日统计 |
 | `GET /api/admin/statistics/period?startDate=xxx&endDate=xxx` | GET | 时间段统计 |
 | `GET /api/admin/statistics/categories` | GET | 热门类别统计 |
-| `GET /api/admin/statistics/locations` | GET | 热门位置统计 |
 
 #### 公开统计接口 `/api/statistics`（无需登录）
 
