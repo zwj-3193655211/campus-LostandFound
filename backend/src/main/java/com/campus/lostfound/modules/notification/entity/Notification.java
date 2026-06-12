@@ -15,6 +15,7 @@ public class Notification {
 
     private Long userId;
 
+    @TableField("type")
     private String type;
 
     private String title;
