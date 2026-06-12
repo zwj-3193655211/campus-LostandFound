@@ -393,19 +393,21 @@ public class MatchingServiceImpl implements MatchingService {
         validateMatchOwnership(userId, lostItem, foundItem);
 
         if ("CONFIRMED".equals(match.getStatus())) {
-            // 由匹配态取消：触发新匹配（确认时会删除其他待确认匹配，所以需要重新生成）
-            match.setStatus("PENDING");
-            match.setUpdatedAt(LocalDateTime.now());
-            matchRepository.updateById(match);
-
+            // 由匹配态取消：删除旧匹配记录，触发新匹配
+            Long lostItemId = match.getLostItemId();
+            Long foundItemId = match.getFoundItemId();
+            
+            // 删除该匹配记录
+            matchRepository.deleteById(matchId);
+            
             // 清除两个物品的匹配标记，使其可以被其他匹配
-            if (lostItem != null && foundItem.getId().equals(lostItem.getMatchItemId())) {
+            if (lostItem != null && foundItemId.equals(lostItem.getMatchItemId())) {
                 lostItem.setMatchItemId(null);
                 lostItem.setMatchScore(null);
                 lostItem.setUpdatedAt(LocalDateTime.now());
                 itemRepository.updateById(lostItem);
             }
-            if (foundItem != null && lostItem.getId().equals(foundItem.getMatchItemId())) {
+            if (foundItem != null && lostItemId.equals(foundItem.getMatchItemId())) {
                 foundItem.setMatchItemId(null);
                 foundItem.setMatchScore(null);
                 foundItem.setUpdatedAt(LocalDateTime.now());
