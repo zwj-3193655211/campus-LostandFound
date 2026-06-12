@@ -45,8 +45,7 @@ public class ItemConstants {
     public static class NotificationType {
         public static final String MATCH_FOUND = "MATCH_FOUND";
         public static final String VERIFICATION_RESULT = "VERIFICATION_RESULT";
-        public static final String COMPLETION_REVIEW_RESULT = "COMPLETION_REVIEW_RESULT";
-        public static final String COMPLETION_REVIEW_REQUEST = "COMPLETION_REVIEW_REQUEST";
+        public static final String COMPLETION_REVIEW_RESULT = "COMPLETION_REVIEW_RESULT";        public static final String COMPLETION_REVIEW_REQUEST = "COMPLETION_REVIEW_REQUEST";
         public static final String SYSTEM = "SYSTEM";
         public static final String ITEM_PENDING = "ITEM_PENDING";
         public static final String VERIFICATION_PENDING = "VERIFICATION_PENDING";

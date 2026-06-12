@@ -154,7 +154,7 @@ public class MailServiceImpl implements MailService {
                             <p><strong>申请状态：</strong><span style="color:#f57c00;font-weight:bold;">%s</span></p>
                         </div>
                         <p style="text-align:center;margin-top:20px;">
-                            <a href="%s/admin/completion-requests" style="display:inline-block;background:#ff9800;color:white;padding:12px 24px;text-decoration:none;border-radius:5px;">立即审核</a>
+                            <a href="%s/admin" style="display:inline-block;background:#ff9800;color:white;padding:12px 24px;text-decoration:none;border-radius:5px;">立即审核</a>
                         </p>
                     </div>
                     <div style="background:#f5f5f5;padding:15px;text-align:center;color:#999;font-size:12px;">
