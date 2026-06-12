@@ -121,7 +121,16 @@
           </div>
           
           <div class="notification-dialog-footer">
-            <span class="footer-info">{{ notifications.length }} 条通知</span>
+            <el-pagination
+              v-if="pagination.total > pageSize"
+              small
+              layout="prev, pager, next"
+              :total="pagination.total"
+              :page-size="pageSize"
+              :current-page="currentPage"
+              @current-change="handlePageChange"
+            />
+            <span v-else class="footer-info">共 {{ pagination.total }} 条通知</span>
             <el-button type="primary" @click="handleClose">关闭</el-button>
           </div>
         </div>
@@ -144,7 +153,10 @@ const notificationStore = useNotificationStore()
 
 const activeTab = ref('all')
 const selectedNotification = ref(null)
+const currentPage = ref(1)
+const pageSize = 20
 
+const pagination = computed(() => notificationStore.pagination)
 const notifications = computed(() => notificationStore.notifications)
 
 const unreadCount = computed(() => notifications.value.filter(n => !n.isRead).length)
@@ -166,6 +178,11 @@ const handleClose = () => {
 
 const handleOverlayClick = () => {
   handleClose()
+}
+
+const handlePageChange = async (page) => {
+  currentPage.value = page
+  await notificationStore.fetchNotifications(page)
 }
 
 const formatTime = (dateStr) => {

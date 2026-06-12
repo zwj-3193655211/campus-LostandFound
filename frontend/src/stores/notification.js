@@ -4,14 +4,23 @@ import axios from '../utils/axios'
 export const useNotificationStore = defineStore('notification', {
   state: () => ({
     notifications: [],
-    unreadCount: 0
+    unreadCount: 0,
+    pagination: {
+      page: 1,
+      pageSize: 20,
+      total: 0
+    }
   }),
 
   actions: {
-    async fetchNotifications() {
+    async fetchNotifications(page = 1) {
       try {
-        const pageData = await axios.get('/notifications')
+        const pageData = await axios.get('/notifications', { params: { page, pageSize: 20 } })
         this.notifications = pageData?.records || []
+        if (pageData?.total) {
+          this.pagination.total = pageData.total
+        }
+        this.pagination.page = page
         const unreadData = await axios.get('/notifications/unread-count')
         this.unreadCount = unreadData || 0
         return pageData
