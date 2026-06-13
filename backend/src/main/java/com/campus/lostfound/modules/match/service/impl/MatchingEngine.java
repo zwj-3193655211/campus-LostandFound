@@ -1,5 +1,6 @@
 package com.campus.lostfound.modules.match.service.impl;
 
+import com.huaban.analysis.jieba.JiebaSegmenter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -13,12 +14,17 @@ import java.util.regex.Pattern;
 
 /**
  * 智能匹配引擎 - 优化版
- * 改进文本相似度算法，更好支持中文匹配
+ * 使用 Jieba 中文分词，支持智能中文分词和语义匹配
  */
 @Component
 public class MatchingEngine {
 
     private static final Logger log = LoggerFactory.getLogger(MatchingEngine.class);
+
+    /**
+     * Jieba 分词器（线程安全，可在多线程环境下使用）
+     */
+    private final JiebaSegmenter jiebaSegmenter = new JiebaSegmenter();
 
     private static final BigDecimal WEIGHT_TEXT = new BigDecimal("0.35");
     private static final BigDecimal WEIGHT_CATEGORY = new BigDecimal("0.25");
@@ -213,41 +219,35 @@ public class MatchingEngine {
             return BigDecimal.ZERO;
         }
 
-        // 计算关键词匹配分数
+        // 计算关键词匹配分数（基于 Jieba 分词）
         int keywordMatch = 0;
         int totalKeywords = keywords1.size() + keywords2.size();
         
         for (String kw1 : keywords1) {
             for (String kw2 : keywords2) {
-                if (kw1.equals(kw2) || kw1.contains(kw2) || kw2.contains(kw1)) {
-                    keywordMatch += 2; // 完整匹配权重更高
+                // 精确匹配
+                if (kw1.equals(kw2)) {
+                    keywordMatch += 3;
+                }
+                // 包含匹配（部分包含）
+                else if (kw1.contains(kw2) || kw2.contains(kw1)) {
+                    keywordMatch += 2;
                 }
             }
         }
 
-        // N-gram字符匹配
-        Set<String> ngrams1 = extractNgrams(left);
-        Set<String> ngrams2 = extractNgrams(right);
-        
-        int ngramMatch = 0;
-        for (String ng1 : ngrams1) {
-            if (ngrams2.contains(ng1)) {
-                ngramMatch++;
-            }
-        }
-
-        // 结合两种分数
+        // 基于 Jieba 分词的 Jaccard 相似度
         double keywordScore = totalKeywords > 0 ? (double) keywordMatch / totalKeywords : 0;
-        double ngramScore = calculateJaccardSimilarity(ngrams1, ngrams2);
         
-        // 关键词权重更高
-        double combinedScore = keywordScore * 0.6 + ngramScore * 0.4;
+        // 标准化到 0-1 范围
+        double normalizedScore = Math.min(1.0, keywordScore);
         
-        return BigDecimal.valueOf(Math.min(1.0, combinedScore)).setScale(2, RoundingMode.HALF_UP);
+        return BigDecimal.valueOf(normalizedScore).setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
-     * 提取关键词（中文词语）
+     * 使用 Jieba 分词提取关键词
+     * 示例："一串钥匙，有一个钥匙扣" → ["一串", "钥匙", "有", "一个", "钥匙扣"]
      */
     private Set<String> extractKeywords(String text) {
         Set<String> keywords = new HashSet<>();
@@ -255,68 +255,21 @@ public class MatchingEngine {
             return keywords;
         }
 
-        // 移除特殊字符，保留中文、英文、数字
-        String cleaned = text.replaceAll("[^\\p{IsHan}a-zA-Z0-9\\s]", " ");
+        // 使用 Jieba 进行分词
+        List<String> words = jiebaSegmenter.sentenceProcess(text);
         
-        // 按空格分割
-        String[] parts = cleaned.split("\\s+");
-        for (String part : parts) {
-            part = part.trim();
-            if (part.length() >= 2) {
-                keywords.add(part.toLowerCase());
-            }
-            // 对于中文，提取2-gram和3-gram
-            String han = part.replaceAll("[^\\p{IsHan}]", "");
-            for (int i = 0; i + 1 < han.length(); i++) {
-                keywords.add(han.substring(i, i + 2));
-            }
-            for (int i = 0; i + 2 < han.length(); i++) {
-                keywords.add(han.substring(i, i + 3));
+        for (String word : words) {
+            word = word.trim();
+            // 过滤：只保留长度>=2的词，或者纯英文字符
+            if (word.length() >= 2) {
+                keywords.add(word.toLowerCase());
+            } else if (word.matches("[a-zA-Z]+")) {
+                // 保留英文字符
+                keywords.add(word.toLowerCase());
             }
         }
+        
         return keywords;
-    }
-
-    /**
-     * 提取N-gram特征
-     */
-    private Set<String> extractNgrams(String text) {
-        Set<String> ngrams = new HashSet<>();
-        if (text == null || text.isBlank()) {
-            return ngrams;
-        }
-
-        String cleaned = text.replaceAll("[^\\p{IsHan}a-zA-Z0-9]", "");
-        if (cleaned.length() < 2) {
-            ngrams.add(cleaned);
-            return ngrams;
-        }
-
-        // 字符级别的bigram
-        for (int i = 0; i + 1 < cleaned.length(); i++) {
-            ngrams.add(cleaned.substring(i, i + 2).toLowerCase());
-        }
-        return ngrams;
-    }
-
-    /**
-     * Jaccard相似度
-     */
-    private double calculateJaccardSimilarity(Set<String> set1, Set<String> set2) {
-        if (set1.isEmpty() && set2.isEmpty()) {
-            return 0;
-        }
-        if (set1.isEmpty() || set2.isEmpty()) {
-            return 0;
-        }
-
-        Set<String> intersection = new HashSet<>(set1);
-        intersection.retainAll(set2);
-        
-        Set<String> union = new HashSet<>(set1);
-        union.addAll(set2);
-        
-        return (double) intersection.size() / union.size();
     }
 
     public static class LostItem {
