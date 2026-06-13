@@ -159,7 +159,9 @@ const pageSize = 20
 const pagination = computed(() => notificationStore.pagination)
 const notifications = computed(() => notificationStore.notifications)
 
-const unreadCount = computed(() => notifications.value.filter(n => !n.isRead).length)
+// 未读数：使用 store 中的真实未读数（来自 /notifications/unread-count 接口）
+// 不使用当前分页的通知计算，避免分页数限制导致未读数不准确
+const unreadCount = computed(() => notificationStore.unreadCount)
 
 const filteredNotifications = computed(() => {
   let result = notifications.value
