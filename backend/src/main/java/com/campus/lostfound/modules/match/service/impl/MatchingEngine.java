@@ -187,88 +187,117 @@ public class MatchingEngine {
     }
 
     /**
-     * 优化的中文文本相似度计算
-     * 结合多种策略：
-     * 1. 关键词匹配（完整词语匹配，权重更高）
-     * 2. N-gram匹配（字符级别的匹配）
-     * 3. 包含关系检测
+     * 基于 Jieba 分词的文本相似度计算
+     *
+     * 算法思路：
+     * 1. 完全相等 → 1.0
+     * 2. 包含关系 → 0.8
+     * 3. 否则基于关键词匹配评分：精确匹配 +3 分，包含匹配 +2 分，最后归一化到 [0, 1]
+     *
+     * 示例：
+     *   文本1："宿舍钥匙" → ["宿舍", "钥匙"]
+     *   文本2："一串钥匙" → ["一串", "钥匙"]
+     *   匹配：["钥匙"] 精确匹配 +3
+     *   总分：3 / (2+2) = 0.75
      */
     private BigDecimal calculateChineseSimilarity(String text1, String text2) {
+        // ========== 第一步：输入校验 ==========
         if (text1 == null || text2 == null || text1.isBlank() || text2.isBlank()) {
-            return BigDecimal.ZERO;
+            return BigDecimal.ZERO;  // 任一文本为空，相似度为 0
         }
 
+        // ========== 第二步：预处理 ==========
+        // 去除首尾空格并转为小写，保证比较时不区分大小写
         String left = text1.trim().toLowerCase();
         String right = text2.trim().toLowerCase();
 
-        // 完全相等
+        // ========== 第三步：特殊情况快速返回 ==========
+        // 情况1：完全相等 → 最高相似度
         if (left.equals(right)) {
             return BigDecimal.ONE;
         }
 
-        // 包含关系检测
+        // 情况2：包含关系（如"宿舍钥匙"包含"钥匙"） → 较高相似度
         if (left.contains(right) || right.contains(left)) {
             return new BigDecimal("0.8");
         }
 
-        // 提取关键词并匹配
-        Set<String> keywords1 = extractKeywords(left);
-        Set<String> keywords2 = extractKeywords(right);
-        
+        // ========== 第四步：Jieba 分词得到关键词集合 ==========
+        Set<String> keywords1 = extractKeywords(left);  // 文本1 的关键词集合
+        Set<String> keywords2 = extractKeywords(right); // 文本2 的关键词集合
+
         if (keywords1.isEmpty() && keywords2.isEmpty()) {
-            return BigDecimal.ZERO;
+            return BigDecimal.ZERO;  // 双方都没有有效关键词，相似度为 0
         }
 
-        // 计算关键词匹配分数（基于 Jieba 分词）
-        int keywordMatch = 0;
-        int totalKeywords = keywords1.size() + keywords2.size();
-        
+        // ========== 第五步：双层循环计算匹配分数 ==========
+        // 遍历两个关键词集合的所有两两组合
+        int keywordMatch = 0;  // 累计匹配分数
+        int totalKeywords = keywords1.size() + keywords2.size();  // 双方关键词总数
+
         for (String kw1 : keywords1) {
             for (String kw2 : keywords2) {
-                // 精确匹配
+                // 精确匹配（如 "钥匙" == "钥匙"）→ 权重 3
                 if (kw1.equals(kw2)) {
                     keywordMatch += 3;
                 }
-                // 包含匹配（部分包含）
+                // 包含匹配（如 "宿舍钥匙" 包含 "钥匙"）→ 权重 2
                 else if (kw1.contains(kw2) || kw2.contains(kw1)) {
                     keywordMatch += 2;
                 }
+                // 都不匹配 → 不加分
             }
         }
 
-        // 基于 Jieba 分词的 Jaccard 相似度
+        // ========== 第六步：归一化到 [0, 1] 范围 ==========
+        // 公式：归一化分数 = 匹配总分 / 双方关键词总数
         double keywordScore = totalKeywords > 0 ? (double) keywordMatch / totalKeywords : 0;
-        
-        // 标准化到 0-1 范围
+
+        // 使用 Math.min 防止极端情况下超过 1.0（如每个词都精确匹配）
         double normalizedScore = Math.min(1.0, keywordScore);
-        
+
+        // 返回保留 2 位小数的结果
         return BigDecimal.valueOf(normalizedScore).setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
      * 使用 Jieba 分词提取关键词
-     * 示例："一串钥匙，有一个钥匙扣" → ["一串", "钥匙", "有", "一个", "钥匙扣"]
+     *
+     * 处理流程：
+     *   1. 输入校验
+     *   2. 调用 Jieba 分词器对文本进行智能分词
+     *   3. 过滤：只保留长度≥2的词，或纯英文字符（避免"有"、"个"等无意义单字）
+     *   4. 放入 HashSet 自动去重
+     *
+     * 示例：
+     *   "一串钥匙，有一个钥匙扣" → ["一串", "钥匙", "有", "一个", "钥匙扣"]
+     *   "iPhone 13" → ["iPhone", "13"]
      */
     private Set<String> extractKeywords(String text) {
+        // ========== 第一步：输入校验 ==========
         Set<String> keywords = new HashSet<>();
         if (text == null || text.isBlank()) {
             return keywords;
         }
 
-        // 使用 Jieba 进行分词
+        // ========== 第二步：Jieba 智能分词 ==========
+        // Jieba 会自动识别中文词语，例如 "宿舍钥匙" → ["宿舍", "钥匙"]
         List<String> words = jiebaSegmenter.sentenceProcess(text);
-        
+
+        // ========== 第三步：过滤有效词语 ==========
         for (String word : words) {
             word = word.trim();
-            // 过滤：只保留长度>=2的词，或者纯英文字符
+            // 情况1：长度>=2的词（中文/英文/数字混合均可）→ 保留
             if (word.length() >= 2) {
                 keywords.add(word.toLowerCase());
-            } else if (word.matches("[a-zA-Z]+")) {
-                // 保留英文字符
+            }
+            // 情况2：纯英文字符（即使只有一个字母也保留）→ 保留
+            else if (word.matches("[a-zA-Z]+")) {
                 keywords.add(word.toLowerCase());
             }
+            // 情况3：单字中文（如"有"、"的"）→ 过滤掉，避免噪音
         }
-        
+
         return keywords;
     }
 
