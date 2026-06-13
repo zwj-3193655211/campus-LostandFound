@@ -27,6 +27,20 @@ import java.util.Comparator;
 @Service
 public class MatchingServiceImpl implements MatchingService {
 
+    /**
+     * 匹配服务实现类
+     *
+     * 核心功能：
+     * 1. match(itemId) - 对单个物品执行匹配算法
+     * 2. matchAll() - 批量匹配所有物品
+     * 3. saveMatch() - 保存匹配记录并发送通知
+     * 4. confirmMatch() / rejectMatch() / cancelMatch() - 匹配操作
+     *
+     * 匹配流程：
+     *   物品发布/审核通过 → match() → findCandidates() 查找候选
+     *   → calculateScore() 计算分数 → 取TopK → saveMatch() 保存并通知
+     */
+
     private static final Logger log = LoggerFactory.getLogger(MatchingServiceImpl.class);
 
     private final MatchRepository matchRepository;
@@ -42,52 +56,99 @@ public class MatchingServiceImpl implements MatchingService {
         this.notificationService = notificationService;
     }
 
+    /**
+     * 对单个物品执行匹配算法
+     *
+     * 流程：
+     * 1. 查询物品信息（不存在则返回）
+     * 2. 根据物品类型确定目标类型（LOST 找 FOUND，反之亦然）
+     * 3. 调用 findCandidates() 查找候选物品（最多300个）
+     * 4. 对每个候选调用 calculateScore() 计算匹配分数
+     * 5. 筛选分数 > 0 的候选，按分数降序排序
+     * 6. 取 TopK（最多20个）调用 saveMatch() 保存
+     *
+     * 触发时机：物品审核通过时、用户重新发布时
+     */
     @Override
     @Transactional
     public void match(Long itemId) {
+        // ========== 第一步：查询物品信息 ==========
         Item item = itemRepository.selectById(itemId);
         if (item == null) {
             log.warn("物品不存在: {}", itemId);
             return;
         }
 
-        String targetType = ItemConstants.Type.LOST.equals(item.getType()) ? ItemConstants.Type.FOUND : ItemConstants.Type.LOST;
+        // ========== 第二步：确定目标类型 ==========
+        // LOST（寻物）只能匹配 FOUND（招领），反之亦然
+        String targetType = ItemConstants.Type.LOST.equals(item.getType())
+                ? ItemConstants.Type.FOUND
+                : ItemConstants.Type.LOST;
+
+        // ========== 第三步：查找候选物品 ==========
         List<Item> candidates = findCandidates(item, targetType);
         log.info("物品{} 找到候选匹配 {} 个", itemId, candidates.size());
 
+        // ========== 第四步：计算匹配分数 ==========
         List<ScoredCandidate> scored = new ArrayList<>();
         for (Item candidate : candidates) {
             BigDecimal score = calculateScore(item, candidate);
+            // 分数 > 0 才会被保留（0 表示不匹配）
             if (score != null && score.compareTo(BigDecimal.ZERO) > 0) {
                 scored.add(new ScoredCandidate(candidate, score));
             }
         }
 
+        // ========== 第五步：按分数降序排序，取 TopK ==========
         scored.sort(Comparator.comparing(ScoredCandidate::score).reversed());
-        int topK = Math.min(20, scored.size());
+        int topK = Math.min(20, scored.size());  // 最多保存 20 条匹配
+
+        // ========== 第六步：保存匹配记录（并发送通知） ==========
         for (int i = 0; i < topK; i++) {
             ScoredCandidate candidate = scored.get(i);
             saveMatch(item, candidate.item(), candidate.score());
         }
     }
 
+    /**
+     * 查找候选匹配物品
+     *
+     * 查询条件：
+     * 1. 物品类型相反（LOST 找 FOUND，或反之）
+     * 2. 状态为已审核（APPROVED）
+     * 3. 排除自己
+     * 4. 排除已有匹配标记的物品（match_item_id 不为空）
+     * 5. 如果有串号：精确匹配串号（最高优先级）
+     * 6. 如果无串号：按类别相同 + 时间范围 ±60 天
+     *
+     * 限制：最多返回 300 个候选
+     */
     private List<Item> findCandidates(Item item, String targetType) {
         String itemStatus = ItemConstants.Status.APPROVED;
         LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Item::getType, targetType);
-        wrapper.eq(Item::getStatus, itemStatus);
-        wrapper.ne(Item::getId, item.getId());
+
+        // ========== 基础筛选条件 ==========
+        wrapper.eq(Item::getType, targetType);        // 类型相反
+        wrapper.eq(Item::getStatus, itemStatus);      // 状态为已审核
+        wrapper.ne(Item::getId, item.getId());        // 排除自己
         // 排除已经有确认匹配的物品（match_item_id 不为空表示已匹配）
         wrapper.isNull(Item::getMatchItemId);
 
+        // ========== 高级筛选条件 ==========
         String serial = item.getSerialNumber();
         if (serial != null && !serial.isBlank()) {
+            // 有串号：精确匹配串号（最高优先级）
             wrapper.eq(Item::getSerialNumber, serial.trim().toUpperCase());
         } else {
+            // 无串号：按类别 + 时间范围筛选
             if (item.getCategory() != null && !item.getCategory().isBlank()) {
                 wrapper.eq(Item::getCategory, item.getCategory());
             }
-            LocalDateTime refTime = ItemConstants.Type.LOST.equals(item.getType()) ? item.getLostTime() : item.getFoundTime();
+
+            // 时间范围：丢失/拾取时间 ±60 天
+            LocalDateTime refTime = ItemConstants.Type.LOST.equals(item.getType())
+                    ? item.getLostTime()
+                    : item.getFoundTime();
             if (refTime != null) {
                 LocalDateTime start = refTime.minusDays(60);
                 LocalDateTime end = refTime.plusDays(60);
@@ -152,6 +213,20 @@ public class MatchingServiceImpl implements MatchingService {
         return matchingEngine.calculateScore(lost, found);
     }
 
+    /**
+     * 保存匹配记录
+     *
+     * 流程：
+     * 1. 判断匹配类型：
+     *    - 分数 = 1.00：SERIAL_EXACT（串号精确匹配）
+     *    - 分数 >= 0.70：WEIGHTED（加权匹配）
+     *    - 分数 < 0.70：NONE（不保存）
+     * 2. 判断 lost/found 物品 ID
+     * 3. 检查是否已存在相同匹配（去重）
+     * 4. 创建 Match 对象并保存到数据库
+     * 5. 如果是精确匹配：更新物品的 match_item_id 字段
+     * 6. 发送通知给双方用户
+     */
     private void saveMatch(Item item1, Item item2, BigDecimal score) {
         if (score == null || score.compareTo(BigDecimal.ZERO) <= 0) {
             return;
@@ -237,6 +312,17 @@ public class MatchingServiceImpl implements MatchingService {
     private record ScoredCandidate(Item item, BigDecimal score) {
     }
 
+    /**
+     * 批量匹配所有已审核的物品
+     *
+     * 流程：
+     * 1. 查询所有状态为 APPROVED 的物品
+     * 2. 两两组合（O(n²) 复杂度）
+     * 3. 只对类型不同的物品（LOST vs FOUND）计算分数
+     * 4. 调用 saveMatch() 保存匹配记录
+     *
+     * 注意：物品数量大时性能较差，谨慎使用
+     */
     @Override
     @Transactional
     public void matchAll() {
@@ -309,6 +395,18 @@ public class MatchingServiceImpl implements MatchingService {
         return PageResponse.of(enrichMatches(result.getRecords()), result.getTotal(), page, pageSize);
     }
 
+    /**
+     * 确认匹配（用户操作）
+     *
+     * 流程：
+     * 1. 校验匹配记录存在且状态为 PENDING
+     * 2. 校验用户是匹配物品的所有者
+     * 3. 更新匹配状态为 CONFIRMED
+     * 4. 更新双方物品的 match_item_id 和 match_score
+     * 5. 删除其他涉及相同物品的待确认匹配（避免冲突）
+     *
+     * 权限：只有匹配物品的所有者可以确认
+     */
     @Override
     @Transactional
     public void confirmMatch(Long matchId, Long userId) {
@@ -358,6 +456,16 @@ public class MatchingServiceImpl implements MatchingService {
         log.info("用户{} 确认匹配 {}", userId, matchId);
     }
 
+    /**
+     * 拒绝匹配（用户操作）
+     *
+     * 流程：
+     * 1. 校验匹配记录存在且状态为 PENDING
+     * 2. 校验用户是匹配物品的所有者
+     * 3. 更新匹配状态为 REJECTED（记录保留）
+     *
+     * 权限：只有匹配物品的所有者可以拒绝
+     */
     @Override
     @Transactional
     public void rejectMatch(Long matchId, Long userId, String reason) {
@@ -380,6 +488,19 @@ public class MatchingServiceImpl implements MatchingService {
         log.info("用户{} 拒绝匹配 {}: {}", userId, matchId, reason);
     }
 
+    /**
+     * 取消匹配（用户操作）
+     *
+     * 两种情况：
+     * 1. CONFIRMED → PENDING（取消已确认的匹配）
+     *    - 清除双方物品的 match_item_id
+     *    - 不触发新匹配，不发邮件
+     * 2. REJECTED → PENDING（取消已拒绝的匹配）
+     *    - 只修改匹配记录状态
+     *    - 物品状态不变
+     *
+     * 权限：只有匹配物品的所有者可以取消
+     */
     @Override
     @Transactional
     public void cancelMatch(Long matchId, Long userId) {
