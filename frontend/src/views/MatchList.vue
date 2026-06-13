@@ -218,12 +218,26 @@ const fetchMatchList = async () => {
     }
     const result = await itemStore.fetchMatches(params)
     matches.value = result?.records || []
-    total.value = result?.total || 0
+    // 注意：total 字段在 fetchTotalCount 中独立更新，保持匹配总数不变
     return true
   } catch (error) {
     console.error('获取匹配列表失败:', error)
     showError(error?.message || '获取匹配列表失败')
     return false
+  }
+}
+
+// 单独获取匹配总数（不随筛选条件变化）
+const fetchTotalCount = async () => {
+  try {
+    const result = await itemStore.fetchMatches({
+      page: 1,
+      pageSize: 1
+      // 不传 status，获取所有匹配的总数
+    })
+    total.value = result?.total || 0
+  } catch (error) {
+    console.error('获取匹配总数失败:', error)
   }
 }
 
@@ -271,7 +285,9 @@ const goDetail = (itemId) => {
 }
 
 onMounted(async () => {
+  // 初始化时同时获取列表和总数
   await fetchMatchList()
+  await fetchTotalCount()
 })
 </script>
 
