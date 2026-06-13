@@ -7,8 +7,6 @@ import com.campus.lostfound.modules.item.entity.Item;
 import com.campus.lostfound.modules.item.repository.ItemRepository;
 import com.campus.lostfound.modules.match.entity.Match;
 import com.campus.lostfound.modules.match.repository.MatchRepository;
-import com.campus.lostfound.modules.statistics.entity.DailyStatistics;
-import com.campus.lostfound.modules.statistics.repository.DailyStatisticsRepository;
 import com.campus.lostfound.modules.statistics.service.StatisticsService;
 import com.campus.lostfound.modules.system.entity.User;
 import com.campus.lostfound.modules.system.repository.UserRepository;
@@ -49,17 +47,14 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final ItemRepository itemRepository;
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
-    private final DailyStatisticsRepository statisticsRepository;
     private final RedisCacheService cacheService;
 
     public StatisticsServiceImpl(ItemRepository itemRepository, MatchRepository matchRepository,
                                 UserRepository userRepository,
-                                DailyStatisticsRepository statisticsRepository,
                                 RedisCacheService cacheService) {
         this.itemRepository = itemRepository;
         this.matchRepository = matchRepository;
         this.userRepository = userRepository;
-        this.statisticsRepository = statisticsRepository;
         this.cacheService = cacheService;
     }
 
@@ -268,44 +263,6 @@ public class StatisticsServiceImpl implements StatisticsService {
                         (e1, e2) -> e1,
                         LinkedHashMap::new
                 ));
-    }
-
-    @Override
-    public void updateDailyStatistics() {
-        LocalDate today = LocalDate.now();
-
-        LambdaQueryWrapper<DailyStatistics> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(DailyStatistics::getStatDate, today);
-        DailyStatistics stat = statisticsRepository.selectOne(wrapper);
-
-        if (stat == null) {
-            stat = new DailyStatistics();
-            stat.setStatDate(today);
-        }
-
-        // 统计今日数据
-        LocalDateTime startOfDay = today.atStartOfDay();
-        LambdaQueryWrapper<Item> itemWrapper = new LambdaQueryWrapper<>();
-        itemWrapper.ge(Item::getCreatedAt, startOfDay);
-
-        itemWrapper.eq(Item::getType, "LOST");
-        stat.setLostCount(Math.toIntExact(itemRepository.selectCount(itemWrapper)));
-
-        itemWrapper = new LambdaQueryWrapper<>();
-        itemWrapper.ge(Item::getCreatedAt, startOfDay);
-        itemWrapper.eq(Item::getType, "FOUND");
-        stat.setFoundCount(Math.toIntExact(itemRepository.selectCount(itemWrapper)));
-
-        LambdaQueryWrapper<Match> matchWrapper = new LambdaQueryWrapper<>();
-        matchWrapper.eq(Match::getStatus, "CONFIRMED");
-        matchWrapper.ge(Match::getUpdatedAt, startOfDay);
-        stat.setMatchCount(Math.toIntExact(matchRepository.selectCount(matchWrapper)));
-
-        if (stat.getId() == null) {
-            statisticsRepository.insert(stat);
-        } else {
-            statisticsRepository.updateById(stat);
-        }
     }
 
     private long countItemsByStatuses(List<String> statuses) {

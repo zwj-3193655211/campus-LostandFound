@@ -1,6 +1,5 @@
 package com.campus.lostfound.modules.statistics.service;
 
-import com.campus.lostfound.modules.statistics.entity.DailyStatistics;
 import java.util.Map;
 
 /**
@@ -37,9 +36,4 @@ public interface StatisticsService {
      * 获取热门位置
      */
     Map<String, Long> getPopularLocations();
-
-    /**
-     * 更新每日统计
-     */
-    void updateDailyStatistics();
 }
