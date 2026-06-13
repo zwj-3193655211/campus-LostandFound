@@ -44,7 +44,18 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 失物服务实现
+ * 物品服务实现类
+ *
+ * 核心功能：
+ * 1. create() - 用户发布物品（创建 PENDING 状态）
+ * 2. update() - 修改待审核物品
+ * 3. delete() - 删除待审核物品
+ * 4. query() - 多条件分页查询物品
+ * 5. review() - 管理员审核物品（通过/拒绝）
+ *
+ * 状态流转：
+ *   用户发布 → PENDING → 管理员审核 → APPROVED/REJECTED
+ *   审核通过后触发 MatchingService.match() 进行智能匹配
  */
 @Service
 public class ItemServiceImpl implements ItemService {
@@ -87,6 +98,20 @@ public class ItemServiceImpl implements ItemService {
         this.matchingService = matchingService;
     }
 
+    /**
+     * 创建物品（用户发布）
+     *
+     * 流程：
+     * 1. 将请求 DTO 转换为 Item 实体
+     * 2. 标准化串号（去空格、转大写）
+     * 3. 设置初始状态为 PENDING
+     * 4. 保存到数据库
+     * 5. 保存图片到 item_images 表
+     * 6. 通知所有管理员有新的待审核物品
+     *
+     * 权限：需要登录
+     * 触发：用户填写发布表单提交后
+     */
     @Override
     @Transactional
     public Item create(ItemCreateRequest request, Long userId) {
@@ -122,6 +147,15 @@ public class ItemServiceImpl implements ItemService {
         return item;
     }
 
+    /**
+     * 更新物品信息
+     *
+     * 限制条件：
+     * - 只有物品所有者可以修改
+     * - 只有 PENDING 状态的物品可以修改（已审核后不允许编辑）
+     *
+     * 注意：修改后状态仍为 PENDING，管理员需要重新审核
+     */
     @Override
     @Transactional
     public Item update(Long id, ItemCreateRequest request, Long userId) {
@@ -155,6 +189,15 @@ public class ItemServiceImpl implements ItemService {
         return item;
     }
 
+    /**
+     * 删除物品
+     *
+     * 限制条件：
+     * - 只有物品所有者可以删除
+     * - 只有 PENDING 状态的物品可以删除（已审核后不允许删除）
+     *
+     * 副作用：清除 Redis 缓存（物品缓存和统计缓存）
+     */
     @Override
     @Transactional
     public void delete(Long id, Long userId) {
@@ -187,6 +230,20 @@ public class ItemServiceImpl implements ItemService {
         return item;
     }
 
+    /**
+     * 多条件分页查询物品
+     *
+     * 支持的筛选条件：
+     * - type: LOST/FOUND（物品类型）
+     * - category: 物品类别
+     * - userId: 发布者 ID
+     * - status: 单个状态
+     * - statuses: 多个状态（用于"待确认+已确认"等组合查询）
+     * - keyword: 关键词（在标题、描述、品牌、颜色、串号、地点中模糊搜索）
+     * - startTime / endTime: 发布时间范围
+     *
+     * 排序：按创建时间倒序
+     */
     @Override
     public PageResponse<Item> query(ItemQueryRequest request) {
         Page<Item> page = new Page<>(request.getPage(), request.getPageSize());
@@ -291,6 +348,22 @@ public class ItemServiceImpl implements ItemService {
         return trimmed.isEmpty() ? null : trimmed.toUpperCase();
     }
 
+    /**
+     * 管理员审核物品
+     *
+     * 流程：
+     * 1. 校验物品存在且状态为 PENDING
+     * 2. 使用条件原子更新（CAS）避免并发审核冲突
+     * 3. 通知发布者审核结果（站内 + 邮件）
+     * 4. 如果审核通过：触发 MatchingService.match() 进行智能匹配
+     * 5. 清除 Redis 缓存
+     *
+     * 并发安全：
+     *   使用 "WHERE status = PENDING" 条件更新，
+     *   防止两个管理员同时审核时出现"双通过/双拒绝"
+     *
+     * 权限：仅管理员
+     */
     @Override
     @Transactional
     public Item review(Long itemId, Long adminId, boolean approved, String reason) {
