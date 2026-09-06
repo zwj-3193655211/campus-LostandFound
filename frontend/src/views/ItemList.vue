@@ -193,7 +193,8 @@ const fetchStats = async () => {
 
 onMounted(async () => {
   await Promise.allSettled([
-    itemStore.fetchLocations().catch(error => showError(typeof error === 'string' ? error : (error?.message || '位置加载失败'))),
+    // 位置列表是辅助数据，加载失败不打断页面
+    itemStore.fetchLocations().catch(() => {}),
     fetchStats()
   ])
   applyRouteQuery()
