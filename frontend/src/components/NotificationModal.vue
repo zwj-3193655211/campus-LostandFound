@@ -26,7 +26,7 @@
                   :class="{ active: activeTab === 'all' }"
                   size="small"
                 >
-                  全部 ({{ notifications.length }})
+                  全部 ({{ pagination.total }})
                 </el-button>
                 <el-button 
                   @click="activeTab = 'unread'" 
@@ -144,12 +144,14 @@ import { computed, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell, CircleCheck, Message, Box, Connection } from '@element-plus/icons-vue'
 import { useNotificationStore } from '../stores/notification'
+import { useUserStore } from '../stores/user'
 import { formatDate } from '../utils/format'
 
 const props = defineProps(['modelValue'])
 const emit = defineEmits(['update:modelValue', 'close'])
 const router = useRouter()
 const notificationStore = useNotificationStore()
+const userStore = useUserStore()
 
 const activeTab = ref('all')
 const selectedNotification = ref(null)
@@ -259,11 +261,14 @@ const goToItem = () => {
 }
 
 onMounted(async () => {
-  await notificationStore.fetchNotifications()
+  // 仅登录用户才拉取通知，避免未登录时触发 401 → 跳转登录页的连锁反应
+  if (userStore.user) {
+    await notificationStore.fetchNotifications()
+  }
 })
 
 watch(() => props.modelValue, async (newVal) => {
-  if (newVal) {
+  if (newVal && userStore.user) {
     await notificationStore.fetchNotifications()
     selectedNotification.value = null
   }

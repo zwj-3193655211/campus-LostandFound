@@ -129,7 +129,7 @@
       @close="showRegister = false"
       @open-login="openLogin"
     />
-    <NotificationModal v-model="showNotifications" />
+    <NotificationModal v-if="showNotifications" v-model="showNotifications" />
   </el-header>
 </template>
 
@@ -241,7 +241,7 @@ watch(
   () => route.query,
   async (query) => {
     if (query?.toast === 'need_login') {
-      showWarning('请先登录后再发布信息')
+      showWarning('请先登录后再操作')
       showLogin.value = true
       const { toast, login, ...rest } = query
       await router.replace({ path: route.path, query: rest })
