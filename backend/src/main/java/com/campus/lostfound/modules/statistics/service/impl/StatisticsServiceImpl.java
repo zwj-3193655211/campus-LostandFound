@@ -223,7 +223,10 @@ public class StatisticsServiceImpl implements StatisticsService {
         String[] cats = {"电子产品", "证件", "书籍", "衣物", "饰品", "钥匙", "钱包", "其他"};
         for (String cat : cats) {
             LambdaQueryWrapper<Item> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(Item::getCategory, cat).eq(Item::getDeleted, 0);
+            // 与公开物品列表口径一致：仅统计审核通过/已完成状态，未审核物品不应计入
+            wrapper.eq(Item::getCategory, cat)
+                   .eq(Item::getDeleted, 0)
+                   .in(Item::getStatus, PUBLIC_ITEM_STATUSES);
             long count = itemRepository.selectCount(wrapper);
             if (count > 0) {
                 categories.put(cat, count);
