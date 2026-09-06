@@ -77,7 +77,7 @@ class SaTokenSecurityIntegrationTest {
     }
 
     @Test
-    void disabledUserShouldBeRejected() throws Exception {
+    void disabledUserShouldReturnUnauthorized() throws Exception {
         User disabled = buildUser(4L, "USER", 0);
         when(userRepository.selectById(4L)).thenReturn(disabled);
         when(userService.getById(4L)).thenReturn(disabled);
@@ -85,10 +85,11 @@ class SaTokenSecurityIntegrationTest {
         StpUtil.login(4L);
         String token = StpUtil.getTokenValue();
 
-        // StpInterfaceImpl 在 getRoleList 时返回 [],等价于没角色 → 403
+        // 被禁用的用户不会写入 SecurityContext → 等价于未登录 → 401
+        // (前端拦截器收到 401 会尝试 refresh，refresh 也失败则跳登录页)
         mockMvc.perform(get("/api/users/profile")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -122,17 +123,18 @@ class SaTokenSecurityIntegrationTest {
     }
 
     @Test
-    void noTokenShouldBeForbidden() throws Exception {
-        // Sa-Token 默认对未登录请求返回 403(Spring Security 401)
+    void noTokenShouldReturnUnauthorized() throws Exception {
+        // 未登录 → 401 + JSON body(而不是 Spring 默认的 403),
+        // 前端 axios 拦截器据此触发 refresh token 流程
         mockMvc.perform(get("/api/users/profile"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void invalidTokenShouldBeForbidden() throws Exception {
+    void invalidTokenShouldReturnUnauthorized() throws Exception {
         mockMvc.perform(get("/api/users/profile")
                         .header("Authorization", "Bearer not.a.valid.jwt"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     private User buildUser(Long id, String role, Integer status) {

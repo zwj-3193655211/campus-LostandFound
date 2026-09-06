@@ -4,10 +4,15 @@ import axios from 'axios'
 const publicEndpoints = [
   '/items',
   '/statistics',
+  '/locations',
   '/uploads/images'
 ]
 
-export function isPublicEndpoint(url) {
+export function isPublicEndpoint(url, method = 'get') {
+  // 公开接口都是只读的 GET；写操作即使路径相似也需要登录
+  if ((method || 'get').toLowerCase() !== 'get') return false
+  // /items/my 是“我的物品”列表，需要登录，不属于公开接口
+  if (url?.startsWith('/items/my')) return false
   return publicEndpoints.some(endpoint => url?.startsWith(endpoint))
 }
 
@@ -15,7 +20,12 @@ export function defaultOnUnauthorized() {
   localStorage.removeItem('token')
   localStorage.removeItem('refreshToken')
   localStorage.removeItem('user')
-  window.location.href = '/'
+  // 跳回首页并携带提示参数，让 Header 自动弹出登录框，登录后跳回原页面
+  const url = new URL(window.location.href)
+  url.searchParams.delete('toast')
+  url.searchParams.delete('login')
+  const current = url.pathname + url.search
+  window.location.href = `/?toast=need_login&redirect=${encodeURIComponent(current)}`
 }
 
 let isRefreshing = false
@@ -75,8 +85,15 @@ export function createApiClient(options = {}) {
       const originalRequest = error.config
       const status = error.response?.status
 
-      // 如果是公开接口（如物品列表），对于401错误不触发刷新token，直接返回错误
-      if (status === 401 && originalRequest && isPublicEndpoint(originalRequest.url)) {
+      // 公开接口（物品列表、位置列表、统计等）不应要求认证：
+      // 若因携带了过期 token 而返回 401，仅对本请求去掉 token 重试一次。
+      // 不能清 localStorage：并发中的受保护请求可能正要用 refreshToken 续期，
+      // 在这里清掉会引发竞态，把凭证尚有效的用户误踢回登录页。
+      if (status === 401 && originalRequest && isPublicEndpoint(originalRequest.url, originalRequest.method)) {
+        if (originalRequest.headers?.Authorization) {
+          delete originalRequest.headers['Authorization']
+          return instance(originalRequest)
+        }
         const err = new Error(error.response?.data?.message || '请求失败')
         err.code = 401
         return Promise.reject(err)
@@ -123,10 +140,17 @@ export function createApiClient(options = {}) {
           localStorage.removeItem('token')
           localStorage.removeItem('refreshToken')
           localStorage.removeItem('user')
-          // 对于公开接口，不带token重试
-          if (originalRequest) {
+
+          // 公开接口：去掉 token 后重试一次（后端对这些接口不要求认证）
+          if (originalRequest && isPublicEndpoint(originalRequest.url, originalRequest.method)) {
             delete originalRequest.headers['Authorization']
             return instance(originalRequest)
+          }
+
+          // 需要登录的接口：refresh 失败说明登录已过期，
+          // 跳转登录页并提示，而不是让页面停留在原地报错
+          if (typeof onUnauthorized === 'function') {
+            onUnauthorized()
           }
           return Promise.reject(refreshError)
         } finally {

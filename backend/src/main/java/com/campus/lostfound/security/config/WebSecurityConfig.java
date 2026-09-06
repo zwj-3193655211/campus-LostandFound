@@ -64,6 +64,8 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/statistics/**").permitAll()
+                        // 位置列表是硬编码的静态数据，公开只读；写操作（POST/PUT/DELETE）仍要求认证
+                        .requestMatchers(HttpMethod.GET, "/api/locations/**").permitAll()
                         .requestMatchers("/api/matches/test").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN")
                         .requestMatchers("/api/notifications/send-test-email").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN")
                         .requestMatchers("/api/notifications/send-match-email").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN")
@@ -77,6 +79,9 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/matches/trigger", "/api/matches/batch")
                         .hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN")
                         .requestMatchers("/api/users/**").authenticated()
+                        // /api/items/my 是“我的物品”，必须登录；
+                        // 该规则需在 GET /api/items/** permitAll 之前声明（先匹配先生效）
+                        .requestMatchers(HttpMethod.GET, "/api/items/my").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/items/**").permitAll()
                         // POST/PUT/DELETE 需要认证
                         .requestMatchers(HttpMethod.POST, "/api/items/**").hasAnyRole("SUPER_ADMIN", "CAMPUS_ADMIN", "USER")
